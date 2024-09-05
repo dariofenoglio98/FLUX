@@ -50,6 +50,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.model.load_state_dict(state_dict, strict=True)
 
     def fit(self, parameters, config):
+        print(f"Config: {config}")
         try: 
             self.set_parameters(parameters)
             for epoch in range(config["local_epochs"]):
@@ -60,10 +61,11 @@ class FlowerClient(fl.client.NumPyClient):
         return self.get_parameters(config), self.num_examples["train"], {}
     
     def evaluate(self, parameters, config):
+        print(f"Client Config: {config}")
         self.set_parameters(parameters)
         try:
             # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
-            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space = self.evaluate_fn.evaluate(self.model, latent=self.latent)
+            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space = self.evaluate_fn.evaluate(self.model, latent=self.latent, max_latent_space=config["max_latent_space"])
 
             return float(loss), self.num_examples["val"], {
                 "accuracy": float(accuracy),
@@ -71,7 +73,8 @@ class FlowerClient(fl.client.NumPyClient):
                 "recall_pc": json.dumps(recall_pc),
                 "f1_pc": json.dumps(f1_pc),
                 "accuracy_pc": json.dumps(accuracy_pc),
-                "loss_pc": json.dumps(loss_pc)
+                "loss_pc": json.dumps(loss_pc),
+                "latent_space": json.dumps(latent_space)
             }
             
         except Exception as e:
@@ -82,7 +85,8 @@ class FlowerClient(fl.client.NumPyClient):
                 "recall_pc": json.dumps([0]*cfg.n_classes),
                 "f1_pc": json.dumps([0]*cfg.n_classes),
                 "accuracy_pc": json.dumps([0]*cfg.n_classes),
-                "loss_pc": json.dumps([10000]*cfg.n_classes)
+                "loss_pc": json.dumps([10000]*cfg.n_classes),
+                "latent_space": json.dumps([0]*cfg.n_classes)
                 }
 
 

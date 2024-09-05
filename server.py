@@ -21,6 +21,8 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 import os
+from logging import WARNING
+from flwr.common.logger import log
 from collections import OrderedDict
 import json
 import time
@@ -29,6 +31,18 @@ import config as cfg
 import utils
 import models
 from sklearn.model_selection import train_test_split
+from flwr.common import (
+    EvaluateIns,
+    FitRes,
+    FitIns,
+    Parameters,
+    Scalar,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
+)
+from flwr.common import NDArray, NDArrays
+from functools import reduce
+from flwr.server.client_manager import ClientManager
 
 
 
@@ -39,9 +53,10 @@ def fit_config(server_round: int):
         "current_round": server_round,
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
+        "min_latent_space": 0,
+        "max_latent_space": 8,
     }
     return config
-
 
 # Custom weighted average function
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
@@ -52,6 +67,52 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
 
+def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
+    """Compute weighted average."""
+    # Calculate the total number of examples used during training
+    num_examples_total = sum([num_examples for _, num_examples in results])
+
+    # Create a list of weights, each multiplied by the related number of examples
+    weighted_weights = [
+        [layer * num_examples for layer in weights] for weights, num_examples in results
+    ]
+
+    # Compute average weights of each layer
+    weights_prime: NDArrays = [
+        reduce(np.add, layer_updates) / num_examples_total
+        for layer_updates in zip(*weighted_weights)
+    ]
+    return weights_prime
+
+def aggregate_fit(
+    self,
+    server_round: int,
+    results: List[Tuple[ClientProxy, FitRes]],
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+    """Aggregate fit results using weighted average."""
+    if not results:
+        return None, {}
+    # Do not aggregate if there are failures and failures are not accepted
+    if not self.accept_failures and failures:
+        return None, {}
+
+    # Convert results
+    weights_results = [
+        (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+        for _, fit_res in results
+    ]
+    parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
+
+    # Aggregate custom metrics if aggregation fn was provided
+    metrics_aggregated = {}
+    if self.fit_metrics_aggregation_fn:
+        fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+        metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+    elif server_round == 1:  # Only log this warning once
+        log(WARNING, "No fit_metrics_aggregation_fn provided")
+
+    return parameters_aggregated, metrics_aggregated
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
@@ -59,6 +120,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         super().__init__(*args, **kwargs)
         self.model = model
         self.dataset = dataset
+        self.client_cid_list = []
 
     # Override aggregate_fit method to add saving functionality
     def aggregate_fit(
@@ -69,10 +131,49 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate model weights using weighted average and store checkpoint"""
         
-        # Call aggregate_fit from base class (FedAvg) to aggregate parameters and metrics
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures) # aggregated_metrics from aggregate_fit is empty except if i pass fit_metrics_aggregation_fn
+        
+        ################################################################################
+        # Client descriptors analysis
+        ################################################################################
+        # Check if client cid list available 
+        if len(self.client_cid_list) == 0:
+            for client in results:
+                self.client_cid_list.append(client[0].cid)
+        # print(f"Client cid list: {self.client_cid_list}")
+        
+        
+        
 
+        
+        ################################################################################
+        # Federated averaging aggregation
+        ################################################################################
+        # Federated averaging - from traditional code
+        if not results:
+            return None, {}
+        # Do not aggregate if there are failures and failures are not accepted
+        if not self.accept_failures and failures:
+            return None, {}
+
+        # Convert results
+        weights_results = [
+            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+            for _, fit_res in results
+        ]
+        aggregated_parameters = ndarrays_to_parameters(aggregate(weights_results))
+
+        # Aggregate custom metrics if aggregation fn was provided
+        aggregated_metrics = {}
+        if self.fit_metrics_aggregation_fn:
+            fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            aggregated_metrics = self.fit_metrics_aggregation_fn(fit_metrics)
+        elif server_round == 1:  # Only log this warning once
+            log(WARNING, "No fit_metrics_aggregation_fn provided")
+            
+            
+        ################################################################################
         # Save model
+        ################################################################################
         if aggregated_parameters is not None:
 
             print(f"Saving round {server_round} aggregated_parameters...")
@@ -87,6 +188,55 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         return aggregated_parameters, aggregated_metrics
 
+    # Override configure_fit method to add custom configuration
+    def configure_fit(
+        self, server_round: int, parameters: Parameters, client_manager: ClientManager
+    ) -> List[Tuple[ClientProxy, FitIns]]:
+        """Configure the next round of training."""
+        config = {}
+        if self.on_fit_config_fn is not None:
+            # Custom fit config function provided
+            config = self.on_fit_config_fn(server_round)      # Config sent to clients during training
+            # print(f"Server Config: {config}")
+        fit_ins = FitIns(parameters, config)
+
+        # Sample clients
+        sample_size, min_num_clients = self.num_fit_clients(
+            client_manager.num_available()
+        )
+        clients = client_manager.sample(
+            num_clients=sample_size, min_num_clients=min_num_clients
+        )
+
+        # Return client/config pairs
+        return [(client, fit_ins) for client in clients]
+
+    # Override configure_evaluate method to add custom configuration
+    def configure_evaluate(
+        self, server_round: int, parameters: Parameters, client_manager: ClientManager
+    ) -> List[Tuple[ClientProxy, EvaluateIns]]:
+        """Configure the next round of evaluation."""
+        # Do not configure federated evaluation if fraction eval is 0.
+        if self.fraction_evaluate == 0.0:
+            return []
+
+        # Parameters and config
+        config = {}
+        if self.on_evaluate_config_fn is not None:
+            # Custom evaluation config function provided
+            config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
+        evaluate_ins = EvaluateIns(parameters, config)
+
+        # Sample clients
+        sample_size, min_num_clients = self.num_evaluation_clients(
+            client_manager.num_available()
+        )
+        clients = client_manager.sample(
+            num_clients=sample_size, min_num_clients=min_num_clients
+        )
+
+        # Return client/config pairs
+        return [(client, evaluate_ins) for client in clients]
 
 
 
