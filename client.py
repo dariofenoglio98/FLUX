@@ -20,6 +20,7 @@ import argparse
 import models
 import config as cfg
 import numpy as np
+import json
 from sklearn.model_selection import train_test_split
 
 
@@ -27,16 +28,18 @@ from sklearn.model_selection import train_test_split
 # Define Flower client )
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, model, train_loader, val_loader, optimizer, num_examples, 
-                 client_id, train_fn, evaluate_fn, device):
+                 client_id, train_fn, device):
         self.model = model
         self.train_loader = train_loader
-        self.val_loader = val_loader
+        # self.val_loader = val_loader
         self.optimizer = optimizer
         self.num_examples = num_examples
         self.client_id = client_id
         self.train_fn = train_fn
-        self.evaluate_fn = evaluate_fn
+        # self.evaluate_fn = evaluate_fn
+        self.evaluate_fn = models.ModelEvaluator(test_loader=val_loader, device=device)
         self.device = device
+        self.latent = True
 
     def get_parameters(self, config):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
@@ -56,44 +59,32 @@ class FlowerClient(fl.client.NumPyClient):
         
         return self.get_parameters(config), self.num_examples["train"], {}
     
-
-    # def evaluate(self, parameters, config):
-    #     self.set_parameters(parameters)
-    #     try:
-    #         loss, accuracy = self.evaluate_fn(self.model, self.device, self.val_loader)
-    #         return float(loss), self.num_examples["val"], {
-    #             "loss": float(loss),
-    #             "accuracy": float(accuracy)
-    #             }
-    #     except Exception as e:
-    #         print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
-    #         return float(10000), self.num_examples["val"], {
-    #             "loss": float(10000),
-    #             "accuracy": float(0)
-    #             }
-    
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         try:
-            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
+            # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
+            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space = self.evaluate_fn.evaluate(self.model, latent=self.latent)
+
             return float(loss), self.num_examples["val"], {
                 "accuracy": float(accuracy),
-                "precision_pc": float(precision_pc),
-                "recall_pc": float(recall_pc),
-                "f1_pc": float(f1_pc),
-                "accuracy_pc": float(accuracy_pc),
-                "loss_pc": float(loss_pc)
-                }
+                "precision_pc": json.dumps(precision_pc), # use json.dumps to serialize the list - read with json.loads
+                "recall_pc": json.dumps(recall_pc),
+                "f1_pc": json.dumps(f1_pc),
+                "accuracy_pc": json.dumps(accuracy_pc),
+                "loss_pc": json.dumps(loss_pc)
+            }
+            
         except Exception as e:
             print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
             return float(10000), self.num_examples["val"], {
                 "accuracy": float(0),
-                "precision_pc": float(0),
-                "recall_pc": float(0),
-                "f1_pc": float(0),
-                "accuracy_pc": float(0),
-                "loss_pc": float(10000)
+                "precision_pc": json.dumps([0]*cfg.n_classes),
+                "recall_pc": json.dumps([0]*cfg.n_classes),
+                "f1_pc": json.dumps([0]*cfg.n_classes),
+                "accuracy_pc": json.dumps([0]*cfg.n_classes),
+                "loss_pc": json.dumps([10000]*cfg.n_classes)
                 }
+
 
 
 
@@ -149,7 +140,7 @@ def main()->None:
 
     # Start Flower client
     client = FlowerClient(model, train_loader, val_loader, optimizer, num_examples, args.id, 
-                           models.simple_train, models.simple_test, device).to_client()
+                           models.simple_train, device).to_client()
     fl.client.start_client(server_address="[::]:8098", client=client) # local host
 
     # read saved data and plot

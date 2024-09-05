@@ -39,16 +39,19 @@ class LeNet5(nn.Module):
         self.fc2 = nn.Linear(120, 84)  # Fully connected layer, output size 84
         self.fc3 = nn.Linear(84, num_classes)  # Fully connected layer, output size num_classes
 
-    def forward(self, x):
+    def forward(self, x, latent=False):
         x = F.relu(self.conv1(x))  # Apply ReLU after conv1
         x = self.pool1(x)  # Apply subsampling pool1
         x = F.relu(self.conv2(x))  # Apply ReLU after conv2
         x = self.pool2(x)  # Apply subsampling pool2
-        x = x.view(x.size(0), -1)  # Flatten for fully connected layers
-        x = F.relu(self.fc1(x))  # Apply ReLU after fc1
+        x_l = x.view(x.size(0), -1)  # Flatten for fully connected layers
+        x = F.relu(self.fc1(x_l))  # Apply ReLU after fc1
         x = F.relu(self.fc2(x))  # Apply ReLU after fc2
         x = self.fc3(x)  # Output layer
-        return x
+        if latent:
+            return x, x_l
+        else:
+            return x
     
 
 # Resnet-9 layer
@@ -85,7 +88,7 @@ class ResNet9(nn.Module):
         # Output layer
         self.linear = nn.Linear(self.feature_size, num_classes)
 
-    def forward(self, x):
+    def forward(self, x, latent=False):
         x = self.prep(x)
         x = self.layer1_head(x)
         x = self.layer1_residual(x) + x
@@ -93,9 +96,13 @@ class ResNet9(nn.Module):
         x = self.layer3_head(x)
         x = self.layer3_residual(x) + x
         x = self.pool(x)  # Changed to adaptive average pooling
-        x = x.view(x.size(0), -1)
-        x = self.linear(x)
-        return x
+        x_l = x.view(x.size(0), -1)
+        x = self.linear(x_l)
+        if latent:
+            return x, x_l
+        else:
+            return x
+    
     
 
 # dictionary with the models
@@ -146,98 +153,128 @@ def simple_test(model, device, test_loader):
     #       f'({100. * correct / len(test_loader.dataset):.0f}%)\n')
     return test_loss, accuracy
 
-# client-enhanced evaluation function
-def evaluate_model_per_class(model, device, test_loader):
-    # Set model to evaluation mode
-    model.eval()
-    num_classes = model.num_classes
-
-    # Define the cross-entropy loss function
-    criterion = torch.nn.CrossEntropyLoss(reduction='none')
-    criterion_trad = torch.nn.CrossEntropyLoss()
-
-    # Initialize storage for metrics
-    precision_per_class = [0] * num_classes
-    recall_per_class = [0] * num_classes
-    f1_per_class = [0] * num_classes
-    accuracy_per_class = [0] * num_classes
-    loss_per_class = [0] * num_classes
-    class_counts = [0] * num_classes
-
-    y_true_all = []
-    y_pred_all = []
-    loss_all = []
-    loss_trad = 0
-    total_samples = 0
-
-    # Accumulate predictions and targets over batches
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            
-            # Get model predictions
-            output = model(data)
-            y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
-            
-            # Store the true and predicted labels for the batch
-            y_true_all.extend(target.cpu().numpy())
-            y_pred_all.extend(y_pred_batch.cpu().numpy())
-            
-            # Compute per-sample loss for the batch
-            batch_loss = criterion(output, target).cpu().numpy()
-            loss_all.extend(batch_loss)
-            
-            # Compute traditional loss for the batch
-            loss_trad += criterion_trad(output, target).item()
-            
-            # Accumulate the total number of samples
-            total_samples += len(target)
-
-    # Convert collected predictions and true labels into tensors for processing
-    y_true_all = torch.tensor(y_true_all)
-    y_pred_all = torch.tensor(y_pred_all)
-    loss_all = torch.tensor(loss_all)
-    
-    # Average traditional loss over the total number of samples
-    loss_trad /= total_samples
-    
-    # Calculate traditional accuracy on the entire test set
-    accuracy_trad = accuracy_score(y_true_all, y_pred_all)
-    
-
-    # Iterate through each class (for MNIST, classes are 0 to 9 by default)
-    for class_idx in range(num_classes):
-        # Get all predictions and ground truths for the current class
-        class_mask = (y_true_all == class_idx)  # Mask for this class
+# ModelEvaluator class
+class ModelEvaluator:
+    def __init__(self, test_loader, device):
+        """
+        Initializes the ModelEvaluator with the model, device, and number of classes.
         
-        y_true_class = (y_true_all == class_idx).numpy().astype(int)  # Binary labels for the current class
-        y_pred_class = (y_pred_all == class_idx).numpy().astype(int)  # Binary predictions for the current class
+        Args:
+            test_loader: DataLoader with test data
+            device: Device to run the evaluation on
+        """
         
-        # Only calculate if there are samples for this class
-        if class_mask.sum() > 0:
-            # Compute precision, recall, and F1-score for this class
-            precision = precision_score(y_true_class, y_pred_class, zero_division=0)
-            recall = recall_score(y_true_class, y_pred_class, zero_division=0)
-            f1 = f1_score(y_true_class, y_pred_class, zero_division=0)
-            accuracy = accuracy_score(y_true_class, y_pred_class)
+        self.test_loader = test_loader
+        self.device = device
+        self.criterion = torch.nn.CrossEntropyLoss(reduction='none')
+        self.criterion_trad = torch.nn.CrossEntropyLoss()
+        
+        # Fit the PCA model 
+        
 
-            # Compute the loss for this class (average the loss of samples in this class)
-            class_loss = loss_all[class_mask].mean().item()
+    def evaluate(self, model, latent=False):
+        """
+        Evaluates the model on the provided test data and returns various metrics.
 
-            # Update class counts and metrics
-            precision_per_class[class_idx] = precision
-            recall_per_class[class_idx] = recall
-            f1_per_class[class_idx] = f1
-            accuracy_per_class[class_idx] = accuracy
-            loss_per_class[class_idx] = class_loss
-            class_counts[class_idx] = class_mask.sum().item()
+        Args:
+            model: Model to evaluate
+            latent: Whether to return the latent representation of the test data
+        """
+        
+        # client-enhanced evaluation function
+        # def evaluate_model_per_class(model, device, test_loader, latent=False):
+        # Set model to evaluation mode
+        model.eval()
+        num_classes = model.num_classes
 
-    return loss_trad, accuracy_trad, precision_per_class, recall_per_class, f1_per_class, accuracy_per_class, loss_per_class
+        # Initialize storage for metrics
+        precision_per_class = [0] * num_classes
+        recall_per_class = [0] * num_classes
+        f1_per_class = [0] * num_classes
+        accuracy_per_class = [0] * num_classes
+        loss_per_class = [0] * num_classes
+        class_counts = [0] * num_classes
 
+        y_true_all = []
+        y_pred_all = []
+        loss_all = []
+        latent_all = []
+        loss_trad = 0
+        total_samples = 0
 
+        # Accumulate predictions and targets over batches
+        with torch.no_grad():
+            for data, target in self.test_loader:
+                data, target = data.to(self.device), target.to(self.device)
+                
+                # Get model predictions
+                if latent: 
+                    output, latent_space = model(data, latent=True)
+                    latent_all.extend(latent_space.cpu().numpy())
+                else: 
+                    output = model(data) 
+                    
+                y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
+                
+                # Store the true and predicted labels for the batch
+                y_true_all.extend(target.cpu().numpy())
+                y_pred_all.extend(y_pred_batch.cpu().numpy())
+                
+                # Compute per-sample loss for the batch
+                batch_loss = self.criterion(output, target).cpu().numpy()
+                loss_all.extend(batch_loss)
+                
+                # Compute traditional loss for the batch
+                loss_trad += self.criterion_trad(output, target).item()
+                
+                # Accumulate the total number of samples
+                total_samples += len(target)
 
+        # Convert collected predictions and true labels into tensors for processing
+        y_true_all = torch.tensor(y_true_all)
+        y_pred_all = torch.tensor(y_pred_all)
+        loss_all = torch.tensor(loss_all)
+        
+        # Average traditional loss over the total number of samples
+        loss_trad /= total_samples
+        
+        # Calculate traditional accuracy on the entire test set
+        accuracy_trad = accuracy_score(y_true_all, y_pred_all)
+        
+        # # Average latent
+        # if latent:
+        #     latent_all = torch.tensor(latent_all)
+        #     latent_all = latent_all.view(latent_all.size(0), -1)
+        #     latent_all = latent_all.mean(dim=0).numpy()
 
+        # Iterate through each class (for MNIST, classes are 0 to 9 by default)
+        for class_idx in range(num_classes):
+            # Get all predictions and ground truths for the current class
+            class_mask = (y_true_all == class_idx)  # Mask for this class
+            
+            y_true_class = (y_true_all == class_idx).numpy().astype(int)  # Binary labels for the current class
+            y_pred_class = (y_pred_all == class_idx).numpy().astype(int)  # Binary predictions for the current class
+            
+            # Only calculate if there are samples for this class
+            if class_mask.sum() > 0:
+                # Compute precision, recall, and F1-score for this class
+                precision = precision_score(y_true_class, y_pred_class, zero_division=0)
+                recall = recall_score(y_true_class, y_pred_class, zero_division=0)
+                f1 = f1_score(y_true_class, y_pred_class, zero_division=0)
+                accuracy = accuracy_score(y_true_class, y_pred_class)
 
+                # Compute the loss for this class (average the loss of samples in this class)
+                class_loss = loss_all[class_mask].mean().item()
+
+                # Update class counts and metrics
+                precision_per_class[class_idx] = precision
+                recall_per_class[class_idx] = recall
+                f1_per_class[class_idx] = f1
+                accuracy_per_class[class_idx] = accuracy
+                loss_per_class[class_idx] = class_loss
+                class_counts[class_idx] = class_mask.sum().item()
+
+        return loss_trad, accuracy_trad, precision_per_class, recall_per_class, f1_per_class, accuracy_per_class, loss_per_class, latent_all
 
 
 
