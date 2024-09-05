@@ -24,7 +24,7 @@
     ```
     conda env create -f environment.yml
     ```
-3. or manually install the required Python packages
+3. or install only the required Python packages
     ```
     pip install -r requirements.txt
     ```
