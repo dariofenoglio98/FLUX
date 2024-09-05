@@ -162,17 +162,20 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Normalizing descriptor matrix
         client_descr = np.array(client_descr)
-        # 1. Normalize each column between 0 and 1 #TODO
+        # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
         scaler = MinMaxScaler() # StandardScaler()
         scaled_data = scaler.fit_transform(client_descr)
         print(f"scaled_data: {scaled_data}")
-        # 2. Normalize by group of descriptors #TODO
+        # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
         loss_pc = client_descr[:, :cfg.n_classes]
         latent_space = client_descr[:, cfg.n_classes:]
         scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
         latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
         scaled_data_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
         print(f"scaled_data_2: {scaled_data_2}")
+        
+        # Visualization: reduce dimensionality to 2D and plot the data
+        # TODO
                     
         # Clustering
         # TODO
