@@ -57,14 +57,43 @@ class FlowerClient(fl.client.NumPyClient):
         return self.get_parameters(config), self.num_examples["train"], {}
     
 
+    # def evaluate(self, parameters, config):
+    #     self.set_parameters(parameters)
+    #     try:
+    #         loss, accuracy = self.evaluate_fn(self.model, self.device, self.val_loader)
+    #         return float(loss), self.num_examples["val"], {
+    #             "loss": float(loss),
+    #             "accuracy": float(accuracy)
+    #             }
+    #     except Exception as e:
+    #         print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
+    #         return float(10000), self.num_examples["val"], {
+    #             "loss": float(10000),
+    #             "accuracy": float(0)
+    #             }
+    
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         try:
-            loss, accuracy = self.evaluate_fn(self.model, self.device, self.val_loader)
-            return float(loss), self.num_examples["val"], {"accuracy": float(accuracy)}
+            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
+            return float(loss), self.num_examples["val"], {
+                "accuracy": float(accuracy),
+                "precision_pc": float(precision_pc),
+                "recall_pc": float(recall_pc),
+                "f1_pc": float(f1_pc),
+                "accuracy_pc": float(accuracy_pc),
+                "loss_pc": float(loss_pc)
+                }
         except Exception as e:
             print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
-            return float(10000), self.num_examples["val"], {"accuracy": float(0)}
+            return float(10000), self.num_examples["val"], {
+                "accuracy": float(0),
+                "precision_pc": float(0),
+                "recall_pc": float(0),
+                "f1_pc": float(0),
+                "accuracy_pc": float(0),
+                "loss_pc": float(10000)
+                }
 
 
 
