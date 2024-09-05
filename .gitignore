@@ -1,1 +1,6 @@
 data/
+checkpoints/
+images/
+results/
+histories/
+__pycache__/

@@ -2,18 +2,19 @@
 
 
 # Training settings
-model_name = "ResNet9"   # Options: "LeNet5", "ResNet9"
+model_name = "LeNet5"   # Options: "LeNet5", "ResNet9"
 batch_size = 64
 test_batch_size = 1000
 n_rounds = 50
+local_epochs = 2
 lr = 0.01
 momentum = 0.9
 seed = 1
 transform = None
 
 # dataset settings
-dataset_name = "CIFAR10" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
-client_number = 10
+dataset_name = "MNIST" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
+client_number = 3
 set_rotation = True
 rotations = 4
 scaling_rotation_low = 1
