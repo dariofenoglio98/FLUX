@@ -297,13 +297,14 @@ class ModelEvaluator:
         self.criterion_trad = torch.nn.CrossEntropyLoss() 
         
 
-    def evaluate(self, model, latent=False, max_latent_space=None):
+    def extract_descriptors(self, model, latent=False, max_latent_space=None):
         """
-        Evaluates the model on the provided test data and returns various metrics.
+        Evaluates the model on the provided test data and returns the descriptors.
 
         Args:
             model: Model to evaluate
             latent: Whether to return the latent representation of the test data
+            max_latent_space: Maximum value of the latent space (used for scaling/PCA)
         """
         
         # client-enhanced evaluation function
@@ -325,6 +326,7 @@ class ModelEvaluator:
         loss_all = []
         latent_all = []
         latent_mean = []
+        new_max_latent_space = max_latent_space
         loss_trad = 0
         total_samples = 0
 
@@ -370,6 +372,7 @@ class ModelEvaluator:
         # Average latent
         if latent:
             latent_all = np.array(latent_all)
+            new_max_latent_space = np.max(latent_all)
             # SCALE OR NOT TRY BOTH
             # scaler = MinMaxScaler(feature_range=(0, max_latent_space)) # maybe try also StandardScaler
             # latent_all = scaler.fit_transform(latent_all) # Sample, Dim_latent_space
@@ -412,8 +415,79 @@ class ModelEvaluator:
                 loss_per_class[class_idx] = class_loss
                 class_counts[class_idx] = class_mask.sum().item()
 
-        return loss_trad, accuracy_trad, precision_per_class, recall_per_class, f1_per_class, accuracy_per_class, loss_per_class, latent_mean
+        return loss_trad, accuracy_trad, precision_per_class, recall_per_class, f1_per_class, accuracy_per_class, loss_per_class, latent_mean, new_max_latent_space
 
+
+    def evaluate(self, model):
+        """
+        Evaluates the model on the provided test data and returns various metrics.
+
+        Args:
+            model: Model to evaluate
+        """
+        
+        # client-enhanced evaluation function
+        # def evaluate_model_per_class(model, device, test_loader, latent=False):
+        # Set model to evaluation mode
+        model.eval()
+        num_classes = model.num_classes
+
+        # Initialize storage for metrics
+        precision_per_class = [0] * num_classes
+        recall_per_class = [0] * num_classes
+        f1_per_class = [0] * num_classes
+        accuracy_per_class = [0] * num_classes
+        loss_per_class = [0] * num_classes
+        class_counts = [0] * num_classes
+
+        y_true_all = []
+        y_pred_all = []
+        loss_all = []
+        latent_all = []
+        loss_trad = 0
+        total_samples = 0
+
+        # Accumulate predictions and targets over batches
+        with torch.no_grad():
+            for data, target in self.test_loader:
+                data, target = data.to(self.device), target.to(self.device)
+                
+                output, latent_space = model(data, latent=True)
+                latent_all.extend(latent_space.cpu().numpy())
+                    
+                y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
+                
+                # Store the true and predicted labels for the batch
+                y_true_all.extend(target.cpu().numpy())
+                y_pred_all.extend(y_pred_batch.cpu().numpy())
+                
+                # Compute per-sample loss for the batch
+                batch_loss = self.criterion(output, target).cpu().numpy()
+                loss_all.extend(batch_loss)
+                
+                # Compute traditional loss for the batch
+                loss_trad += self.criterion_trad(output, target).item()
+                
+                # Accumulate the total number of samples
+                total_samples += len(target)
+
+        # Convert collected predictions and true labels into tensors for processing
+        y_true_all = torch.tensor(y_true_all)
+        y_pred_all = torch.tensor(y_pred_all)
+        loss_all = torch.tensor(loss_all)
+        
+        # Average traditional loss over the total number of samples
+        loss_trad /= total_samples
+        
+        # Calculate traditional accuracy on the entire test set
+        accuracy_trad = accuracy_score(y_true_all, y_pred_all)
+        f1_score_trad = f1_score(y_true_all, y_pred_all, average='weighted') # Calculate metrics for each label, and find their average weighted by support. NOT traditional F1-score
+        
+        # Take the next round max latent space value
+        latent_all = np.array(latent_all)
+        new_max_latent_space = np.max(latent_all)
+
+        return loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space
 
 
 

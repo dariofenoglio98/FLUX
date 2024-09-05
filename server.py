@@ -33,6 +33,7 @@ import models
 from sklearn.model_selection import train_test_split
 from flwr.common import (
     EvaluateIns,
+    EvaluateRes,
     FitRes,
     FitIns,
     Parameters,
@@ -43,8 +44,11 @@ from flwr.common import (
 from flwr.common import NDArray, NDArrays
 from functools import reduce
 from flwr.server.client_manager import ClientManager
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
+# Define the max latent space as global variable
+max_latent_space = 2
 
 # Config_client
 def fit_config(server_round: int):
@@ -54,7 +58,7 @@ def fit_config(server_round: int):
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
         "min_latent_space": 0,
-        "max_latent_space": 8,
+        "max_latent_space": max_latent_space,
     }
     return config
 
@@ -66,6 +70,12 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     examples = [num_examples for num_examples, _ in metrics]
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
+
+def weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
+    """Aggregate evaluation results obtained from multiple clients."""
+    num_total_evaluation_examples = sum([num_examples for num_examples, _ in results])
+    weighted_losses = [num_examples * loss for num_examples, loss in results]
+    return sum(weighted_losses) / num_total_evaluation_examples
 
 def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     """Compute weighted average."""
@@ -141,8 +151,31 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 self.client_cid_list.append(client[0].cid)
         # print(f"Client cid list: {self.client_cid_list}")
         
+        # Extract client descriptors
+        client_descr = []
+        for _, res in results:
+            # res.num_examples, res.metrics
+            loss_pc = json.loads(res.metrics["loss_pc"])
+            latent_space = json.loads(res.metrics["latent_space"])
+            # concatenate the descriptors
+            client_descr.append(loss_pc + latent_space)
         
-        
+        # Normalizing descriptor matrix
+        client_descr = np.array(client_descr)
+        # 1. Normalize each column between 0 and 1 #TODO
+        scaler = MinMaxScaler() # StandardScaler()
+        scaled_data = scaler.fit_transform(client_descr)
+        print(f"scaled_data: {scaled_data}")
+        # 2. Normalize by group of descriptors #TODO
+        loss_pc = client_descr[:, :cfg.n_classes]
+        latent_space = client_descr[:, cfg.n_classes:]
+        scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+        latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+        scaled_data_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
+        print(f"scaled_data_2: {scaled_data_2}")
+                    
+        # Clustering
+        # TODO
 
         
         ################################################################################
@@ -187,56 +220,97 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
         
         return aggregated_parameters, aggregated_metrics
+    
+    
+    ############################################################################################################
+    # Aggregate evaluation results
+    ############################################################################################################
+    def aggregate_evaluate(
+        self,
+        server_round: int,
+        results: List[Tuple[ClientProxy, EvaluateRes]],
+        failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        """Aggregate evaluation losses using weighted average."""
+        if not results:
+            return None, {}
+        # Do not aggregate if there are failures and failures are not accepted
+        if not self.accept_failures and failures:
+            return None, {}
 
-    # Override configure_fit method to add custom configuration
-    def configure_fit(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
-    ) -> List[Tuple[ClientProxy, FitIns]]:
-        """Configure the next round of training."""
-        config = {}
-        if self.on_fit_config_fn is not None:
-            # Custom fit config function provided
-            config = self.on_fit_config_fn(server_round)      # Config sent to clients during training
-            # print(f"Server Config: {config}")
-        fit_ins = FitIns(parameters, config)
-
-        # Sample clients
-        sample_size, min_num_clients = self.num_fit_clients(
-            client_manager.num_available()
-        )
-        clients = client_manager.sample(
-            num_clients=sample_size, min_num_clients=min_num_clients
-        )
-
-        # Return client/config pairs
-        return [(client, fit_ins) for client in clients]
-
-    # Override configure_evaluate method to add custom configuration
-    def configure_evaluate(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
-    ) -> List[Tuple[ClientProxy, EvaluateIns]]:
-        """Configure the next round of evaluation."""
-        # Do not configure federated evaluation if fraction eval is 0.
-        if self.fraction_evaluate == 0.0:
-            return []
-
-        # Parameters and config
-        config = {}
-        if self.on_evaluate_config_fn is not None:
-            # Custom evaluation config function provided
-            config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
-        evaluate_ins = EvaluateIns(parameters, config)
-
-        # Sample clients
-        sample_size, min_num_clients = self.num_evaluation_clients(
-            client_manager.num_available()
-        )
-        clients = client_manager.sample(
-            num_clients=sample_size, min_num_clients=min_num_clients
+        # Aggregate loss
+        loss_aggregated = weighted_loss_avg(
+            [
+                (evaluate_res.num_examples, evaluate_res.loss)
+                for _, evaluate_res in results
+            ]
         )
 
-        # Return client/config pairs
-        return [(client, evaluate_ins) for client in clients]
+        # Aggregate custom metrics if aggregation fn was provided
+        metrics_aggregated = {}
+        if self.evaluate_metrics_aggregation_fn:
+            eval_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            metrics_aggregated = self.evaluate_metrics_aggregation_fn(eval_metrics)
+        elif server_round == 1:  # Only log this warning once
+            log(WARNING, "No evaluate_metrics_aggregation_fn provided")
+        
+        # Update the max_latent_space for the next round
+        max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
+        global max_latent_space 
+        max_latent_space = 1.02 * max_client_latent_space 
+        print(f"Max latent space (evaluation): {max_latent_space}")
+
+        return loss_aggregated, metrics_aggregated
+    
+    # # Override configure_fit method to add custom configuration
+    # def configure_fit(
+    #     self, server_round: int, parameters: Parameters, client_manager: ClientManager
+    # ) -> List[Tuple[ClientProxy, FitIns]]:
+    #     """Configure the next round of training."""
+    #     config = {}
+    #     if self.on_fit_config_fn is not None:
+    #         # Custom fit config function provided
+    #         config = self.on_fit_config_fn(server_round)      # Config sent to clients during training
+    #         # print(f"Server Config: {config}")
+    #     fit_ins = FitIns(parameters, config)
+
+    #     # Sample clients
+    #     sample_size, min_num_clients = self.num_fit_clients(
+    #         client_manager.num_available()
+    #     )
+    #     clients = client_manager.sample(
+    #         num_clients=sample_size, min_num_clients=min_num_clients
+    #     )
+
+    #     # Return client/config pairs
+    #     return [(client, fit_ins) for client in clients]
+
+    # # Override configure_evaluate method to add custom configuration
+    # def configure_evaluate(
+    #     self, server_round: int, parameters: Parameters, client_manager: ClientManager
+    # ) -> List[Tuple[ClientProxy, EvaluateIns]]:
+    #     """Configure the next round of evaluation."""
+    #     # Do not configure federated evaluation if fraction eval is 0.
+    #     if self.fraction_evaluate == 0.0:
+    #         return []
+
+    #     # Parameters and config
+    #     config = {}
+    #     if self.on_evaluate_config_fn is not None:
+    #         # Custom evaluation config function provided
+    #         config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
+    #     evaluate_ins = EvaluateIns(parameters, config)
+
+    #     # Sample clients
+    #     sample_size, min_num_clients = self.num_evaluation_clients(
+    #         client_manager.num_available()
+    #     )
+    #     clients = client_manager.sample(
+    #         num_clients=sample_size, min_num_clients=min_num_clients
+    #     )
+
+    #     # Return client/config pairs
+    #     return [(client, evaluate_ins) for client in clients]
 
 
 

@@ -41,52 +41,82 @@ class FlowerClient(fl.client.NumPyClient):
         self.device = device
         self.latent = True
 
+
     def get_parameters(self, config):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
+
 
     def set_parameters(self, parameters):
         params_dict = zip(self.model.state_dict().keys(), parameters)
         state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
         self.model.load_state_dict(state_dict, strict=True)
 
+
     def fit(self, parameters, config):
-        print(f"Config: {config}")
-        try: 
-            self.set_parameters(parameters)
-            for epoch in range(config["local_epochs"]):
-                self.train_fn(self.model, self.device, self.train_loader, self.optimizer, epoch, self.client_id)
-        except Exception as e:
-            print(f"An error occurred during training of Honest client {self.client_id}: {e}, returning model with error") 
-        
-        return self.get_parameters(config), self.num_examples["train"], {}
-    
-    def evaluate(self, parameters, config):
-        print(f"Client Config: {config}")
+        print(f"Client {self.client_id} - Training model - Config: {config}")
+        # Set the model parameters
         self.set_parameters(parameters)
+        
+        # Evaluate the global model - extract descriptors
         try:
             # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
-            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space = self.evaluate_fn.evaluate(self.model, latent=self.latent, max_latent_space=config["max_latent_space"])
-
-            return float(loss), self.num_examples["val"], {
+            loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space, max_latent_space = self.evaluate_fn.extract_descriptors(self.model, latent=self.latent, max_latent_space=config["max_latent_space"])
+            print(f"Client {self.client_id} - Max latent space: {max_latent_space}")
+            descriptors = {
+                "num_examples_val": self.num_examples["val"],
+                "loss_val": float(loss),
                 "accuracy": float(accuracy),
                 "precision_pc": json.dumps(precision_pc), # use json.dumps to serialize the list - read with json.loads
                 "recall_pc": json.dumps(recall_pc),
                 "f1_pc": json.dumps(f1_pc),
                 "accuracy_pc": json.dumps(accuracy_pc),
                 "loss_pc": json.dumps(loss_pc),
-                "latent_space": json.dumps(latent_space)
-            }
-            
+                "latent_space": json.dumps(latent_space),
+                "max_latent_space": float(max_latent_space)
+            }   
         except Exception as e:
-            print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
-            return float(10000), self.num_examples["val"], {
+            print(f"An error occurred during the descriptor extraction of client {self.client_id}: {e}, returning same zero metrics") 
+            descriptors = {
+                "num_examples_val": self.num_examples["val"],
+                "loss_val": float(10000),
                 "accuracy": float(0),
                 "precision_pc": json.dumps([0]*cfg.n_classes),
                 "recall_pc": json.dumps([0]*cfg.n_classes),
                 "f1_pc": json.dumps([0]*cfg.n_classes),
                 "accuracy_pc": json.dumps([0]*cfg.n_classes),
                 "loss_pc": json.dumps([10000]*cfg.n_classes),
-                "latent_space": json.dumps([0]*cfg.n_classes)
+                "latent_space": json.dumps([0]*cfg.n_classes),
+                "max_latent_space": float(config["max_latent_space"])
+                }
+            
+        # Train the model   
+        try: 
+            for epoch in range(config["local_epochs"]):
+                self.train_fn(self.model, self.device, self.train_loader, self.optimizer, epoch, self.client_id)
+        except Exception as e:
+            print(f"An error occurred during training of Honest client {self.client_id}: {e}, returning model with error") 
+        
+        return self.get_parameters(config), self.num_examples["train"], descriptors
+    
+    
+    def evaluate(self, parameters, config):
+        self.set_parameters(parameters)
+        try:
+            # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
+            loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = self.evaluate_fn.evaluate(self.model)
+
+            return float(loss_trad), self.num_examples["val"], {
+                "accuracy": float(accuracy_trad),
+                "f1_score": float(f1_score_trad),
+                "max_latent_space": float(new_max_latent_space)
+            }
+            
+        except Exception as e:
+            print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
+            return float(10000), self.num_examples["val"], {
+                "accuracy": float(0),
+                "f1_score": float(0),
+                "max_latent_space": float(config["max_latent_space"])
                 }
 
 
