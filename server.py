@@ -182,16 +182,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Visualization: reduce dimensionality to 2D and plot the data
         pca = PCA(n_components=2)
         X_reduced = pca.fit_transform(scaled_data_2)
-        
-        # Plot the data
-        # if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
-        #     os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
-        # plt.figure(figsize=(10, 6))
-        # sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=self.client_cid_list, palette="deep")
-        # plt.title("Client Descriptors Analysis", fontsize=18)  # Title font size 18
-        # plt.xlabel("PC1", fontsize=16)  # X label font size 16
-        # plt.ylabel("PC2", fontsize=16)  # Y label font size 16
-        # plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/client_descriptors_{server_round}.png")
                     
         # Clustering
         # Transpose the data so that the clients (first dimension) become rows (3x20)
@@ -203,12 +193,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Store inertia (sum of squared distances to centroids) and silhouette scores
         inertia = []
         silhouette_scores = []
-
         for n_clusters in range_n_clusters:
             kmeans = KMeans(n_clusters=n_clusters, random_state=42)
             cluster_labels = kmeans.fit_predict(transposed_data)
-            
-            # Append inertia (elbow method)
             inertia.append(kmeans.inertia_)
             
             # Calculate silhouette score and append
@@ -220,7 +207,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Plot inertia (Elbow Method)
         plt.figure(figsize=(10, 5))
         plt.plot(range_n_clusters, inertia, marker='o', label='Inertia')
-        plt.title(f'Elbow Method for Optimal Clusters - {server_round}', fontsize=18)  # Title font size 18
+        plt.title(f'Elbow Method (Optimal Cluster:{range_n_clusters[np.argmax(inertia)]}) - R.{server_round}', fontsize=18)  # Title font size 18
         plt.xlabel('Number of clusters', fontsize=16)  # X label font size 16
         plt.ylabel('Inertia', fontsize=16)  # Y label font size 16
         plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/elbow_method_{server_round}.png")
@@ -228,7 +215,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Plot silhouette scores
         plt.figure(figsize=(10, 5))
         plt.plot(range_n_clusters, silhouette_scores, marker='o', label='Silhouette Score')
-        plt.title(f'Silhouette Scores for Optimal Clusters - {server_round}', fontsize=18)  # Title font size 18
+        plt.title(f'Silhouette Scores (Optimal Cluster:{range_n_clusters[np.argmax(silhouette_scores)]}) - R.{server_round}', fontsize=18)  # Title font size 18
         plt.xlabel('Number of clusters', fontsize=16)  # X label font size 16
         plt.ylabel('Silhouette Score', fontsize=16)  # Y label font size 16
         plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/silhouette_scores_{server_round}.png")
@@ -248,7 +235,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Plot the identified clusters with the best score/number of clusters
         plt.figure(figsize=(10, 6))
         sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_best, palette="deep")
-        plt.title(f'Cluster Visualization (Best: {best_n_clusters} Clusters)', fontsize=18)
+        plt.title(f'KMEANS ({best_n_clusters} Clusters) - R.{server_round}', fontsize=18)
         plt.xlabel('PC1', fontsize=16)
         plt.ylabel('PC2', fontsize=16)
         plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/kmeans_cluster_visualization_{server_round}.png")
@@ -261,7 +248,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Plot the identified DBSCAN clusters
         plt.figure(figsize=(10, 6))
         sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_dbscan, palette="deep", legend="full")
-        plt.title(f'DBSCAN Cluster Visualization', fontsize=18)
+        plt.title(f'DBSCAN ({len(set(cluster_labels_dbscan))} Clusters) - R.{server_round}', fontsize=18)
         plt.xlabel('PC1', fontsize=16)
         plt.ylabel('PC2', fontsize=16)
         plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/dbscan_cluster_visualization_{server_round}.png")
@@ -274,7 +261,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Plot the identified HDBSCAN clusters
         plt.figure(figsize=(10, 6))
         sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_hdbscan, palette="deep", legend="full")
-        plt.title(f'HDBSCAN Cluster Visualization', fontsize=18)
+        plt.title(f'HDBSCAN ({len(set(cluster_labels_hdbscan))} Clusters) - R.{server_round}', fontsize=18)
         plt.xlabel('PC1', fontsize=16)
         plt.ylabel('PC2', fontsize=16)
         plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/hdbscan_cluster_visualization_{server_round}.png")

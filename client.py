@@ -61,7 +61,7 @@ class FlowerClient(fl.client.NumPyClient):
         try:
             # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
             loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc, latent_space, max_latent_space = self.evaluate_fn.extract_descriptors(self.model, latent=self.latent, max_latent_space=config["max_latent_space"])
-            print(f"Client {self.client_id} - Max latent space: {max_latent_space}")
+            # print(f"Client {self.client_id} - Max latent space: {max_latent_space}")
             descriptors = {
                 "num_examples_val": self.num_examples["val"],
                 "loss_val": float(loss),
