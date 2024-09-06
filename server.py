@@ -45,6 +45,11 @@ from flwr.common import NDArray, NDArrays
 from functools import reduce
 from flwr.server.client_manager import ClientManager
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 # Define the max latent space as global variable
@@ -165,20 +170,114 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
         scaler = MinMaxScaler() # StandardScaler()
         scaled_data = scaler.fit_transform(client_descr)
-        print(f"scaled_data: {scaled_data}")
+        # print(f"scaled_data: {scaled_data}")
         # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
         loss_pc = client_descr[:, :cfg.n_classes]
         latent_space = client_descr[:, cfg.n_classes:]
         scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
         latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
         scaled_data_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
-        print(f"scaled_data_2: {scaled_data_2}")
+        # print(f"scaled_data_2: {scaled_data_2}")
         
         # Visualization: reduce dimensionality to 2D and plot the data
-        # TODO
+        pca = PCA(n_components=2)
+        X_reduced = pca.fit_transform(scaled_data_2)
+        
+        # Plot the data
+        # if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
+        #     os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+        # plt.figure(figsize=(10, 6))
+        # sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=self.client_cid_list, palette="deep")
+        # plt.title("Client Descriptors Analysis", fontsize=18)  # Title font size 18
+        # plt.xlabel("PC1", fontsize=16)  # X label font size 16
+        # plt.ylabel("PC2", fontsize=16)  # Y label font size 16
+        # plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/client_descriptors_{server_round}.png")
                     
         # Clustering
-        # TODO
+        # Transpose the data so that the clients (first dimension) become rows (3x20)
+        transposed_data = scaled_data_2
+
+        # Range of cluster numbers to try
+        range_n_clusters = range(2, scaled_data_2.shape[0])  # Adjust based on your data size
+
+        # Store inertia (sum of squared distances to centroids) and silhouette scores
+        inertia = []
+        silhouette_scores = []
+
+        for n_clusters in range_n_clusters:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            cluster_labels = kmeans.fit_predict(transposed_data)
+            
+            # Append inertia (elbow method)
+            inertia.append(kmeans.inertia_)
+            
+            # Calculate silhouette score and append
+            silhouette_avg = silhouette_score(transposed_data, cluster_labels)
+            silhouette_scores.append(silhouette_avg)
+
+        if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
+            os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+        # Plot inertia (Elbow Method)
+        plt.figure(figsize=(10, 5))
+        plt.plot(range_n_clusters, inertia, marker='o', label='Inertia')
+        plt.title(f'Elbow Method for Optimal Clusters - {server_round}', fontsize=18)  # Title font size 18
+        plt.xlabel('Number of clusters', fontsize=16)  # X label font size 16
+        plt.ylabel('Inertia', fontsize=16)  # Y label font size 16
+        plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/elbow_method_{server_round}.png")
+
+        # Plot silhouette scores
+        plt.figure(figsize=(10, 5))
+        plt.plot(range_n_clusters, silhouette_scores, marker='o', label='Silhouette Score')
+        plt.title(f'Silhouette Scores for Optimal Clusters - {server_round}', fontsize=18)  # Title font size 18
+        plt.xlabel('Number of clusters', fontsize=16)  # X label font size 16
+        plt.ylabel('Silhouette Score', fontsize=16)  # Y label font size 16
+        plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/silhouette_scores_{server_round}.png")
+
+        # Identify the best number of clusters based on the highest silhouette score
+        best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
+
+        # Apply PCA to reduce the data to 2D for visualization
+        pca = PCA(n_components=2)
+        X_reduced = pca.fit_transform(transposed_data)
+
+        # Apply KMeans with the best number of clusters
+        kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
+        cluster_labels_best = kmeans_best.fit_predict(transposed_data)
+        print(f"KMeans cluster_labels: {cluster_labels_best}")
+
+        # Plot the identified clusters with the best score/number of clusters
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_best, palette="deep")
+        plt.title(f'Cluster Visualization (Best: {best_n_clusters} Clusters)', fontsize=18)
+        plt.xlabel('PC1', fontsize=16)
+        plt.ylabel('PC2', fontsize=16)
+        plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/kmeans_cluster_visualization_{server_round}.png")
+
+        # Apply DBSCAN (doesn't require specifying the number of clusters)
+        clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
+        cluster_labels_dbscan = clustering.fit_predict(transposed_data)
+        print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
+
+        # Plot the identified DBSCAN clusters
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_dbscan, palette="deep", legend="full")
+        plt.title(f'DBSCAN Cluster Visualization', fontsize=18)
+        plt.xlabel('PC1', fontsize=16)
+        plt.ylabel('PC2', fontsize=16)
+        plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/dbscan_cluster_visualization_{server_round}.png")
+        
+        # HDBSCAN
+        clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
+        cluster_labels_hdbscan = clustering.fit_predict(transposed_data)
+        print(f"HDBSCAN cluster_labels: {cluster_labels_hdbscan}")
+        
+        # Plot the identified HDBSCAN clusters
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels_hdbscan, palette="deep", legend="full")
+        plt.title(f'HDBSCAN Cluster Visualization', fontsize=18)
+        plt.xlabel('PC1', fontsize=16)
+        plt.ylabel('PC2', fontsize=16)
+        plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/hdbscan_cluster_visualization_{server_round}.png")
 
         
         ################################################################################

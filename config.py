@@ -5,7 +5,7 @@
 model_name = "LeNet5"   # Options: "LeNet5", "ResNet9"
 batch_size = 64
 test_batch_size = 1000
-n_rounds = 5
+n_rounds = 20
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
@@ -14,8 +14,8 @@ transform = None
 
 # dataset settings
 dataset_name = "MNIST" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
-client_number = 3
-set_rotation = True
+client_number = 20
+set_rotation = False
 rotations = 4
 scaling_rotation_low = 1
 scaling_rotation_high = 1
