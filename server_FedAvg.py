@@ -9,12 +9,6 @@ This is code is set to be used locally, but it can be used in a distributed envi
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
 run the appopriate client code (client.py).
 
-METHOD: in the first round, the server sends the global model to all clients for evaluation and descritor extraction.
-Then, the server clusters the clients based on the extracted descriptors. The server aggregates the models of the clients
-in each cluster and sends the aggregated model to the clients in the respective cluster for training. The server also sends
-the aggregated clustered model to the clients in the respective cluster for evaluation. 
-In the next round of training, the server continues to cluster the clients based on the extracted descriptors using the 
-previous round's clustered model (not great-different models used for evaluation). 
 """
 
 # Libraries
@@ -157,100 +151,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         
         ################################################################################
-        # Client descriptors analysis
-        ################################################################################
-        # Update client cid list   
-        self.client_cid_list = []
-        for client in results:
-            self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
-        
-        # Extract client descriptors
-        client_descr = []
-        client_cid = []
-        for _, res in results:
-            # res.num_examples, res.metrics
-            loss_pc = json.loads(res.metrics["loss_pc"])
-            latent_space = json.loads(res.metrics["latent_space"])
-            client_cid.append(res.metrics["cid"])
-            # concatenate the descriptors
-            client_descr.append(loss_pc + latent_space)
-        
-        
-        # Normalizing descriptor matrix
-        client_descr = np.array(client_descr)
-        # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
-        scaler = MinMaxScaler() # StandardScaler()
-        client_descr_scaled_1 = scaler.fit_transform(client_descr)
-        # print(f"scaled_data: {client_descr_scaled_1}")
-        # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
-        loss_pc = client_descr[:, :cfg.n_classes]
-        latent_space = client_descr[:, cfg.n_classes:]
-        scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-        latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-        client_descr_scaled_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
-        # print(f"scaled_data_2: {client_descr_scaled_2}")
-        
-        # TODO: choose the best method for normalization
-        client_descr_scaled = client_descr_scaled_2
-        
-        
-        ###############################################################################            
-        # Clustering
-        ###############################################################################
-        # Range of cluster numbers to try
-        range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
-
-        # Store inertia (sum of squared distances to centroids) and silhouette scores
-        inertia = []
-        silhouette_scores = []
-        for n_clusters in range_n_clusters:
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-            cluster_labels = kmeans.fit_predict(client_descr_scaled)
-            inertia.append(kmeans.inertia_)
-            
-            # Calculate silhouette score and append
-            silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
-            silhouette_scores.append(silhouette_avg)
-    
-        # # Plot inertia (Elbow Method) and silhouette scores
-        utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
-
-        # Identify the best number of clusters based on the highest silhouette score
-        best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
-
-        # Apply PCA to reduce the data to 2D for visualization
-        pca = PCA(n_components=2)
-        X_reduced = pca.fit_transform(client_descr_scaled)
-
-        # Apply KMeans with the best number of clusters
-        kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
-        cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
-        # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
-        # Plot the identified clusters with the best score/number of clusters
-        utils.cluster_plot(X_reduced, cluster_labels_kmeans, client_cid, server_round, name="KMeans")
-
-        # Apply DBSCAN (doesn't require specifying the number of clusters)
-        # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
-        # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
-        # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
-        # Plot the identified DBSCAN clusters
-        # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
-        
-        # HDBSCAN
-        clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
-        cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
-        if min(cluster_labels_hdbscan) < 0:
-            cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
-        # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
-        # Plot the identified HDBSCAN clusters
-        utils.cluster_plot(X_reduced, cluster_labels_hdbscan, client_cid, server_round, name="HDBSCAN")
-        
-        # Choose the best clustering methods
-        n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
-        self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
-        
-        
-        ################################################################################
         # Federated averaging aggregation
         ################################################################################
         # Federated averaging - from traditional code
@@ -266,16 +166,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             for _, fit_res in results
         ]
         aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
-        
-        # Split aggregation into clusters
-        client_clusters = {i: [] for i in range(n_clusters)}
-        for i, cluster in enumerate(self.cluster_labels.values()):
-            client_clusters[cluster].append(weights_results[i])
-            
-        # Aggregate each cluster
-        self.aggregated_cluster_parameters = []
-        for cluster in client_clusters.values():
-                self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
         
         # Aggregate custom metrics if aggregation fn was provided   NO FIT METRICS AGGREGATION FN PROVIDED - SKIPPED FOR NOW
         aggregated_metrics = {}
@@ -335,97 +225,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             metrics_aggregated = self.evaluate_metrics_aggregation_fn(eval_metrics)
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No evaluate_metrics_aggregation_fn provided")
-        
-        # Update the max_latent_space for the next round
-        max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        global max_latent_space 
-        max_latent_space = 1.02 * max_client_latent_space 
 
         return loss_aggregated, metrics_aggregated
     
 
-    ############################################################################################################
-    # Configure fit - Send custom configuration to clients for training
-    ############################################################################################################
-    # Override configure_fit method to add custom configuration
-    def configure_fit(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
-    ) -> List[Tuple[ClientProxy, FitIns]]:
-        """Configure the next round of training."""
-        config = {}
-        if self.on_fit_config_fn is not None:
-            # Custom fit config function provided
-            config = self.on_fit_config_fn(server_round)      # Config sent to clients during training 
-            
-        # Sample clients
-        sample_size, min_num_clients = self.num_fit_clients(
-            client_manager.num_available()
-        )
-        clients = client_manager.sample(
-            num_clients=sample_size, min_num_clients=min_num_clients
-        )
-        
-        # Extract cids from the sampled clients
-        client_cids_sampled = [client.cid for client in clients]
-        
-        # if first round, send the global parameters to all clients
-        if server_round == 1:
-            # GLOBAL TRAINING
-            fit_ins = FitIns(parameters, config)
-        else:           
-            # CLUSTERED AGGREGATION - Instrucions for clients - custom fit_ins for each client 
-            fit_ins = []
-            for c in client_cids_sampled:
-                fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-        
-        # Return client/config pairs
-        if server_round == 1:
-            return [(client, fit_ins) for client in clients]
-        else:
-            return [(client, fit_ins[i]) for i, client in enumerate(clients)]
-      
+
     
-    ############################################################################################################
-    # Configure evaluate - Send custom configuration to clients for evaluation
-    ############################################################################################################  
-    # Override configure_evaluate method to add custom configuration
-    def configure_evaluate(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
-    ) -> List[Tuple[ClientProxy, EvaluateIns]]:
-        """Configure the next round of evaluation."""
-        # Do not configure federated evaluation if fraction eval is 0.
-        if self.fraction_evaluate == 0.0:
-            return []
-
-        # Parameters and config
-        config = {}
-        if self.on_evaluate_config_fn is not None:
-            # Custom evaluation config function provided
-            config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
-        
-        # GLOBAL AGGREGATION - SEND BACK FOR EVALUATION THE GLOBAL MODEL
-        # evaluate_ins = EvaluateIns(parameters, config) # In case of global aggregation
-            
-        # Sample clients
-        sample_size, min_num_clients = self.num_evaluation_clients(
-            client_manager.num_available()
-        )
-        clients = client_manager.sample(
-            num_clients=sample_size, min_num_clients=min_num_clients
-        )
-        
-        # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
-        # Extract cids from the sampled clients
-        client_cids_sampled = [client.cid for client in clients]
-
-        evaluate_ins = []
-        for c in client_cids_sampled:
-            evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-
-        # Return client/config pairs
-        # return [(client, evaluate_ins) for client in clients]
-        return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
-
 
 
 

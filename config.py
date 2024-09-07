@@ -5,7 +5,7 @@
 model_name = "LeNet5"   # Options: "LeNet5", "ResNet9"
 batch_size = 64
 test_batch_size = 1000
-n_rounds = 4
+n_rounds = 10
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
@@ -40,5 +40,15 @@ input_size_dict = {
     "MNIST": (28, 28),
     "FMNIST": (28, 28)
 }
+
 input_size = input_size_dict[dataset_name]
+
+acceptable_accuracy = {
+    "CIFAR10": 0.5,
+    "CIFAR100": 0.1,
+    "MNIST": 0.8,
+    "FMNIST": 0.8
+}
+
+th_accuracy = acceptable_accuracy[dataset_name]
 

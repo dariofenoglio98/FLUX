@@ -53,13 +53,10 @@ class FlowerClient(fl.client.NumPyClient):
 
 
     def fit(self, parameters, config):
-        # print(f"Client {self.client_id} - Training model - Config: {config}")
         # Set the model parameters
         self.set_parameters(parameters)
-        
-        # Print first layer weights
-        print(f"Client {self.client_id} - First layer weights: {self.model.conv1.weight[0][0]}")
-        
+        # print(f"Client {self.client_id} - First layer weights: {self.model.conv1.weight[0][0]}")
+                
         # Evaluate the global model - extract descriptors
         try:
             # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)

@@ -62,6 +62,7 @@ import matplotlib.pyplot as plt
 # Define the max latent space as global variable
 max_latent_space = 2
 
+
 # Config_client
 def fit_config(server_round: int):
     """Return training configuration dict for each round."""
@@ -145,6 +146,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
+        self.aggregated_parameters_global = None
+        self.cluster_done = False
+        self.cluster_do = False
 
     # Override aggregate_fit method to add saving functionality
     def aggregate_fit(
@@ -175,7 +179,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # concatenate the descriptors
             client_descr.append(loss_pc + latent_space)
         
-        
         # Normalizing descriptor matrix
         client_descr = np.array(client_descr)
         # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
@@ -197,57 +200,64 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ###############################################################################            
         # Clustering
         ###############################################################################
-        # Range of cluster numbers to try
-        range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
-
-        # Store inertia (sum of squared distances to centroids) and silhouette scores
-        inertia = []
-        silhouette_scores = []
-        for n_clusters in range_n_clusters:
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-            cluster_labels = kmeans.fit_predict(client_descr_scaled)
-            inertia.append(kmeans.inertia_)
+        if self.cluster_do:
+            print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
+            self.cluster_done = True
+            self.cluster_do = False
             
-            # Calculate silhouette score and append
-            silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
-            silhouette_scores.append(silhouette_avg)
-    
-        # # Plot inertia (Elbow Method) and silhouette scores
-        utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
+            # Range of cluster numbers to try
+            range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
 
-        # Identify the best number of clusters based on the highest silhouette score
-        best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
-
-        # Apply PCA to reduce the data to 2D for visualization
-        pca = PCA(n_components=2)
-        X_reduced = pca.fit_transform(client_descr_scaled)
-
-        # Apply KMeans with the best number of clusters
-        kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
-        cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
-        # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
-        # Plot the identified clusters with the best score/number of clusters
-        utils.cluster_plot(X_reduced, cluster_labels_kmeans, client_cid, server_round, name="KMeans")
-
-        # Apply DBSCAN (doesn't require specifying the number of clusters)
-        # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
-        # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
-        # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
-        # Plot the identified DBSCAN clusters
-        # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
+            # Store inertia (sum of squared distances to centroids) and silhouette scores
+            inertia = []
+            silhouette_scores = []
+            for n_clusters in range_n_clusters:
+                kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+                cluster_labels = kmeans.fit_predict(client_descr_scaled)
+                inertia.append(kmeans.inertia_)
+                
+                # Calculate silhouette score and append
+                silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
+                silhouette_scores.append(silhouette_avg)
         
-        # HDBSCAN
-        clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
-        cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
-        if min(cluster_labels_hdbscan) < 0:
-            cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
-        # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
-        # Plot the identified HDBSCAN clusters
-        utils.cluster_plot(X_reduced, cluster_labels_hdbscan, client_cid, server_round, name="HDBSCAN")
-        
-        # Choose the best clustering methods
-        n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
-        self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+            # # Plot inertia (Elbow Method) and silhouette scores
+            utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
+
+            # Identify the best number of clusters based on the highest silhouette score
+            best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
+
+            # Apply PCA to reduce the data to 2D for visualization
+            pca = PCA(n_components=2)
+            X_reduced = pca.fit_transform(client_descr_scaled)
+
+            # Apply KMeans with the best number of clusters
+            kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
+            cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
+            # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
+            # Plot the identified clusters with the best score/number of clusters
+            utils.cluster_plot(X_reduced, cluster_labels_kmeans, client_cid, server_round, name="KMeans")
+
+            # Apply DBSCAN (doesn't require specifying the number of clusters)
+            # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
+            # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
+            # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
+            # Plot the identified DBSCAN clusters
+            # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
+            
+            # HDBSCAN
+            clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
+            cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
+            if min(cluster_labels_hdbscan) < 0:
+                cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
+            # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
+            # Plot the identified HDBSCAN clusters
+            utils.cluster_plot(X_reduced, cluster_labels_hdbscan, client_cid, server_round, name="HDBSCAN")
+            
+            # Choose the best clustering methods
+            self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
+            self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+
         
         
         ################################################################################
@@ -265,17 +275,21 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
             for _, fit_res in results
         ]
-        aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
         
-        # Split aggregation into clusters
-        client_clusters = {i: [] for i in range(n_clusters)}
-        for i, cluster in enumerate(self.cluster_labels.values()):
-            client_clusters[cluster].append(weights_results[i])
-            
-        # Aggregate each cluster
-        self.aggregated_cluster_parameters = []
-        for cluster in client_clusters.values():
-                self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
+        # i can skip this part when cluster_done is False, but i still need aggregated_parameters_global to pass
+        aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
+        self.aggregated_parameters_global = aggregated_parameters_global
+        
+        if self.cluster_done:
+            # Split aggregation into clusters
+            client_clusters = {i: [] for i in range(self.n_clusters)}
+            for i, cluster in enumerate(self.cluster_labels.values()):
+                client_clusters[cluster].append(weights_results[i])
+                
+            # Aggregate each cluster
+            self.aggregated_cluster_parameters = []
+            for cluster in client_clusters.values():
+                    self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
         
         # Aggregate custom metrics if aggregation fn was provided   NO FIT METRICS AGGREGATION FN PROVIDED - SKIPPED FOR NOW
         aggregated_metrics = {}
@@ -300,6 +314,19 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             self.model.load_state_dict(state_dict, strict=True)
             # Save the model
             torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
+        
+        if self.cluster_done:
+            # Save the aggregated cluster models
+            for i, aggregated_cluster_parameters in enumerate(self.aggregated_cluster_parameters):
+                print(f"Saving round {server_round} aggregated_cluster_parameters_{i}...")
+                # Convert `Parameters` to `List[np.ndarray]`
+                aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(aggregated_cluster_parameters)
+                # Convert `List[np.ndarray]` to PyTorch`state_dict`
+                params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
+                state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+                self.model.load_state_dict(state_dict, strict=True)
+                # Save the model
+                torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}_cluster_{i}.pth")
         
         return aggregated_parameters_global, aggregated_metrics
     
@@ -336,6 +363,22 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No evaluate_metrics_aggregation_fn provided")
         
+        print(f"\033[93mRound {server_round} - Aggregated loss: {loss_aggregated} - Aggregated metrics: {metrics_aggregated}\033[0m")
+        if metrics_aggregated["accuracy"] > cfg.th_accuracy and not self.cluster_done:
+            self.cluster_do = True
+            print(f"\033[93mRound {server_round} - Clustering flag: {self.cluster_do}\033[0m")
+            
+            # Saving evaluation model
+            print(f"Saving round {server_round} aggregated_parameters...")
+            # Convert `Parameters` to `List[np.ndarray]`
+            aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
+            # Convert `List[np.ndarray]` to PyTorch`state_dict`
+            params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
+            state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+            self.model.load_state_dict(state_dict, strict=True)
+            # Save the model
+            torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
+        
         # Update the max_latent_space for the next round
         max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
         global max_latent_space 
@@ -365,24 +408,19 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             num_clients=sample_size, min_num_clients=min_num_clients
         )
         
-        # Extract cids from the sampled clients
-        client_cids_sampled = [client.cid for client in clients]
-        
-        # if first round, send the global parameters to all clients
-        if server_round == 1:
+        # if cluster is not done use global otherwise use cluster aggregation
+        if not self.cluster_done:
             # GLOBAL TRAINING
             fit_ins = FitIns(parameters, config)
+            return [(client, fit_ins) for client in clients]
         else:           
             # CLUSTERED AGGREGATION - Instrucions for clients - custom fit_ins for each client 
+            client_cids_sampled = [client.cid for client in clients]
             fit_ins = []
             for c in client_cids_sampled:
                 fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-        
-        # Return client/config pairs
-        if server_round == 1:
-            return [(client, fit_ins) for client in clients]
-        else:
             return [(client, fit_ins[i]) for i, client in enumerate(clients)]
+        
       
     
     ############################################################################################################
@@ -402,9 +440,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if self.on_evaluate_config_fn is not None:
             # Custom evaluation config function provided
             config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
-        
-        # GLOBAL AGGREGATION - SEND BACK FOR EVALUATION THE GLOBAL MODEL
-        # evaluate_ins = EvaluateIns(parameters, config) # In case of global aggregation
             
         # Sample clients
         sample_size, min_num_clients = self.num_evaluation_clients(
@@ -414,17 +449,18 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             num_clients=sample_size, min_num_clients=min_num_clients
         )
         
-        # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
-        # Extract cids from the sampled clients
-        client_cids_sampled = [client.cid for client in clients]
+        if not self.cluster_done:
+            # GLOBAL EVALUATION
+            evaluate_ins = EvaluateIns(parameters, config)
+            return [(client, evaluate_ins) for client in clients]
+        else:
+            # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
+            client_cids_sampled = [client.cid for client in clients]
+            evaluate_ins = []
+            for c in client_cids_sampled:
+                evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
+            return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
 
-        evaluate_ins = []
-        for c in client_cids_sampled:
-            evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-
-        # Return client/config pairs
-        # return [(client, evaluate_ins) for client in clients]
-        return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
 
 
 
@@ -509,7 +545,8 @@ def main() -> None:
 
     # Evaluate the model on the test set
     loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
+    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
+    print(f"\033[93mNOTE: global model is evaluated, not correct!\033[0m\n")
 
     # Print training time in minutes (grey color)
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
