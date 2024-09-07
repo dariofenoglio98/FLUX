@@ -541,7 +541,7 @@ def main() -> None:
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
 
     # Load the best model
-    model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth"))
+    model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
 
     # Evaluate the model on the test set
     loss_test, accuracy_test = models.simple_test(model, device, test_loader)
