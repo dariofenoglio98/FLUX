@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import non_iiddata_generator_no_drifting as noniidgen
 import config as cfg
 import torch
@@ -101,3 +102,47 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
     if show:
         plt.show()
     return min_loss_index+1, max_accuracy_index+1
+
+# Cluster plot
+def cluster_plot(X_reduced, cluster_labels, client_cid, server_round, name="KMeans"):
+    # Create a folder to save the plots
+    if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
+        os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+        
+    # Plot the clusters
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels, palette="deep", legend="full", s=100)
+    plt.title(f'{name} ({len(set(cluster_labels))} Clusters) - R.{server_round}', fontsize=18)
+    plt.xlabel('PC1', fontsize=16)
+    plt.ylabel('PC2', fontsize=16)
+    # Annotate client id
+    for i, cid in enumerate(client_cid):
+        plt.text(X_reduced[i, 0], X_reduced[i, 1], str(cid), fontsize=10, ha='right')
+    # Save the plot
+    plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/{name.lower()}_cluster_visualization_{server_round}.png")
+    plt.close()
+    
+# Plot the elbow and silhouette scores
+def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round):
+    # Create a folder to save the plots
+    if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
+        os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+        
+    # Create figure and subplots
+    fig, axs = plt.subplots(1, 2, figsize=(20, 5))  # Two plots side by side, width is larger (20) to accommodate both plots
+
+    # Plot inertia (Elbow Method) on the first subplot
+    axs[0].plot(range_n_clusters, inertia, marker='o', label='Inertia')
+    axs[0].set_title(f'Elbow Method (Optimal Cluster: {range_n_clusters[np.argmin(inertia)]}) - R.{server_round}', fontsize=18)
+    axs[0].set_xlabel('Number of clusters', fontsize=16)
+    axs[0].set_ylabel('Inertia', fontsize=16)
+
+    # Plot silhouette scores on the second subplot
+    axs[1].plot(range_n_clusters, silhouette_scores, marker='o', label='Silhouette Score')
+    axs[1].set_title(f'Silhouette Scores (Optimal Cluster: {range_n_clusters[np.argmax(silhouette_scores)]}) - R.{server_round}', fontsize=18)
+    axs[1].set_xlabel('Number of clusters', fontsize=16)
+    axs[1].set_ylabel('Silhouette Score', fontsize=16)
+
+    # Save the combined figure to the appropriate directory
+    plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/elbow_and_silhouette_{server_round}.png")
+    plt.close()

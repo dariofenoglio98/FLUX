@@ -53,9 +53,12 @@ class FlowerClient(fl.client.NumPyClient):
 
 
     def fit(self, parameters, config):
-        print(f"Client {self.client_id} - Training model - Config: {config}")
+        # print(f"Client {self.client_id} - Training model - Config: {config}")
         # Set the model parameters
         self.set_parameters(parameters)
+        
+        # Print first layer weights
+        print(f"Client {self.client_id} - First layer weights: {self.model.conv1.weight[0][0]}")
         
         # Evaluate the global model - extract descriptors
         try:
@@ -72,7 +75,8 @@ class FlowerClient(fl.client.NumPyClient):
                 "accuracy_pc": json.dumps(accuracy_pc),
                 "loss_pc": json.dumps(loss_pc),
                 "latent_space": json.dumps(latent_space),
-                "max_latent_space": float(max_latent_space)
+                "max_latent_space": float(max_latent_space),
+                "cid": int(self.client_id)
             }   
         except Exception as e:
             print(f"An error occurred during the descriptor extraction of client {self.client_id}: {e}, returning same zero metrics") 
@@ -86,7 +90,8 @@ class FlowerClient(fl.client.NumPyClient):
                 "accuracy_pc": json.dumps([0]*cfg.n_classes),
                 "loss_pc": json.dumps([10000]*cfg.n_classes),
                 "latent_space": json.dumps([0]*cfg.n_classes),
-                "max_latent_space": float(config["max_latent_space"])
+                "max_latent_space": float(config["max_latent_space"]),
+                "cid": int(self.client_id)
                 }
             
         # Train the model   
@@ -108,7 +113,8 @@ class FlowerClient(fl.client.NumPyClient):
             return float(loss_trad), self.num_examples["val"], {
                 "accuracy": float(accuracy_trad),
                 "f1_score": float(f1_score_trad),
-                "max_latent_space": float(new_max_latent_space)
+                "max_latent_space": float(new_max_latent_space),
+                "cid": int(self.client_id)
             }
             
         except Exception as e:
@@ -116,7 +122,8 @@ class FlowerClient(fl.client.NumPyClient):
             return float(10000), self.num_examples["val"], {
                 "accuracy": float(0),
                 "f1_score": float(0),
-                "max_latent_space": float(config["max_latent_space"])
+                "max_latent_space": float(config["max_latent_space"]),
+                "cid": int(self.client_id)
                 }
 
 

@@ -14,7 +14,7 @@ transform = None
 
 # dataset settings
 dataset_name = "MNIST" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
-client_number = 20
+client_number = 10
 set_rotation = False
 rotations = 4
 scaling_rotation_low = 1
