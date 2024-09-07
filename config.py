@@ -5,7 +5,7 @@
 model_name = "LeNet5"   # Options: "LeNet5", "ResNet9"
 batch_size = 64
 test_batch_size = 1000
-n_rounds = 20
+n_rounds = 4
 local_epochs = 2
 lr = 0.01
 momentum = 0.9

@@ -137,7 +137,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.dataset = dataset
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
-        self.cluster_labels = []
+        self.cluster_labels = {}
 
     # Override aggregate_fit method to add saving functionality
     def aggregate_fit(
@@ -152,10 +152,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         # Client descriptors analysis
         ################################################################################
-        # Check if client cid list available 
-        if len(self.client_cid_list) == 0:
-            for client in results:
-                self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
+        # Update client cid list   
+        self.client_cid_list = []
+        for client in results:
+            self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
+            # print(f"Client cid list: {self.client_cid_list}")
+        print(f"Client cid list: {self.client_cid_list}")
         
         # Extract client descriptors
         client_descr = []
@@ -167,6 +169,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             client_cid.append(res.metrics["cid"])
             # concatenate the descriptors
             client_descr.append(loss_pc + latent_space)
+        
+        print(f"Client cid: {client_cid}")
         
         # Normalizing descriptor matrix
         client_descr = np.array(client_descr)
@@ -185,9 +189,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # TODO: choose the best method for normalization
         client_descr_scaled = client_descr_scaled_2
         
-        # Visualization: reduce dimensionality to 2D and plot the data
-        pca = PCA(n_components=2)
-        X_reduced = pca.fit_transform(client_descr_scaled)
         
         ###############################################################################            
         # Clustering
@@ -244,8 +245,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Choose the best clustering methods
         n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
         print(f"Number of clusters: {n_clusters}")
-        self.cluster_labels = cluster_labels_hdbscan  # Best clustering method
-        print(f"Client cid: {client_cid}")
+        self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+        print(f"Client cid: {self.cluster_labels}")
         
         
         ################################################################################
@@ -267,7 +268,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Split aggregation into clusters
         client_clusters = {i: [] for i in range(n_clusters)}
-        for i, cluster in enumerate(self.cluster_labels):
+        for i, cluster in enumerate(self.cluster_labels.values()):
             client_clusters[cluster].append(weights_results[i])
             
         # Aggregate each cluster
@@ -354,17 +355,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         config = {}
         if self.on_fit_config_fn is not None:
             # Custom fit config function provided
-            config = self.on_fit_config_fn(server_round)      # Config sent to clients during training
-        
-        # if first round, send the global parameters to all clients
-        if server_round == 1:
-            fit_ins = FitIns(parameters, config)
-        else:           
-            # Instrucions for clients - custom fit_ins for each client 
-            fit_ins = []
-            for c in range(len(self.cluster_labels)):   # For each client
-                fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-
+            config = self.on_fit_config_fn(server_round)      # Config sent to clients during training 
+            
         # Sample clients
         sample_size, min_num_clients = self.num_fit_clients(
             client_manager.num_available()
@@ -372,7 +364,20 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         clients = client_manager.sample(
             num_clients=sample_size, min_num_clients=min_num_clients
         )
-
+        
+        # Extract cids from the sampled clients
+        client_cids_sampled = [client.cid for client in clients]
+        
+        # if first round, send the global parameters to all clients
+        if server_round == 1:
+            # GLOBAL TRAINING
+            fit_ins = FitIns(parameters, config)
+        else:           
+            # CLUSTERED AGGREGATION - Instrucions for clients - custom fit_ins for each client 
+            fit_ins = []
+            for c in client_cids_sampled:
+                fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
+        
         # Return client/config pairs
         if server_round == 1:
             return [(client, fit_ins) for client in clients]
@@ -398,11 +403,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Custom evaluation config function provided
             config = self.on_evaluate_config_fn(server_round)      # Config sent to clients during evaluation
         
+        # GLOBAL AGGREGATION - SEND BACK FOR EVALUATION THE GLOBAL MODEL
         # evaluate_ins = EvaluateIns(parameters, config) # In case of global aggregation
-        
-        evaluate_ins = []
-        for c in range(len(self.cluster_labels)):   # For each client
-            evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
             
         # Sample clients
         sample_size, min_num_clients = self.num_evaluation_clients(
@@ -411,6 +413,14 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         clients = client_manager.sample(
             num_clients=sample_size, min_num_clients=min_num_clients
         )
+        
+        # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
+        # Extract cids from the sampled clients
+        client_cids_sampled = [client.cid for client in clients]
+
+        evaluate_ins = []
+        for c in client_cids_sampled:
+            evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
 
         # Return client/config pairs
         # return [(client, evaluate_ins) for client in clients]
