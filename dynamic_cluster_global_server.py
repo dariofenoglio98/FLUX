@@ -9,14 +9,13 @@ This is code is set to be used locally, but it can be used in a distributed envi
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
 run the appopriate client code (client.py).
 
-METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
-current global model is utilized to extract client descriptors and perform the one-shot clustering. After the clustering,
-each client receives only the assigned cluster model, which its local model will be aggregated with other client models
-in the same clusters. The training continues until the end. 
+METHOD: 
+
 """
 
 # Libraries
 import flwr as fl
+from modified_flwr import app
 import numpy as np
 from typing import List, Tuple, Union, Optional, Dict
 from flwr.common import Parameters, Scalar, Metrics
@@ -473,7 +472,7 @@ def main() -> None:
     #     help="Specifies the number of FL rounds",
     # )
     # args = parser.parse_args()
-
+    
     # Start time
     start_time = time.time()
 
@@ -521,7 +520,7 @@ def main() -> None:
     print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.client_number} clients\033[0m\n")
 
     # Start Flower server for three rounds of federated learning
-    history = fl.server.start_server(
+    history = app.start_server(
         server_address="0.0.0.0:8098",   # 0.0.0.0 listens to all available interfaces
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
