@@ -21,7 +21,7 @@ sys.path.append("/Users/dariofenoglio/miniforge3/envs/CFL/lib/python3.12/site-pa
 # Add the path to your modified flwr
 sys.path.append("/Users/dariofenoglio/Library/CloudStorage/OneDrive-USI/PC/Desktop/USI_Locale/CFL/modified_flwr")
 
-
+# Libraries
 import argparse
 import csv
 import importlib.util

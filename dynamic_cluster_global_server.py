@@ -20,6 +20,7 @@ import numpy as np
 from typing import List, Tuple, Union, Optional, Dict
 from flwr.common import Parameters, Scalar, Metrics
 from flwr.server.client_proxy import ClientProxy
+from flwr.server.client_manager import ClientManager, SimpleClientManager
 from flwr.common import FitRes
 import argparse
 import torch
@@ -54,6 +55,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 import seaborn as sns
 import matplotlib.pyplot as plt
+from modified_flwr.server import Server
 
 
 # Define the max latent space as global variable
@@ -516,14 +518,17 @@ def main() -> None:
         on_fit_config_fn=fit_config,
         dataset=cfg.dataset_name,
     )
+    
+    # server = Server(strategy=strategy)
 
     print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.client_number} clients\033[0m\n")
 
     # Start Flower server for three rounds of federated learning
     history = app.start_server(
+        server=Server(client_manager=SimpleClientManager(), strategy=strategy),
         server_address="0.0.0.0:8098",   # 0.0.0.0 listens to all available interfaces
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
-        strategy=strategy,
+        # strategy=strategy,
     )
     # convert history to list
     loss = [k[1] for k in history.losses_distributed]

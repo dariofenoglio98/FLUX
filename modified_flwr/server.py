@@ -14,7 +14,7 @@
 # ==============================================================================
 """Flower server."""
 
-
+# Libraries
 import concurrent.futures
 import io
 import timeit
@@ -41,6 +41,7 @@ from flwr.server.strategy import FedAvg, Strategy
 
 from flwr.server.server_config import ServerConfig
 
+# Types
 FitResultsAndFailures = Tuple[
     List[Tuple[ClientProxy, FitRes]],
     List[Union[Tuple[ClientProxy, FitRes], BaseException]],
@@ -109,14 +110,14 @@ class Server:
         start_time = timeit.default_timer()
 
         for current_round in range(1, num_rounds + 1):
-            
-            
-            ##
-            
-            
             log(INFO, "")
             log(INFO, "[ROUND %s]", current_round)
-            # Train model and replace previous global model
+            
+            # -- Additional distributed evaluation -- Descriptor extraction
+            res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
+
+
+            # -- Train model and replace previous global model
             res_fit = self.fit_round(
                 server_round=current_round,
                 timeout=timeout,
@@ -129,7 +130,8 @@ class Server:
                     server_round=current_round, metrics=fit_metrics
                 )
 
-            # Evaluate model using strategy implementation
+
+            # -- Centralized evaluation -- Evaluate model using strategy implementation -- Not used in the paper
             res_cen = self.strategy.evaluate(current_round, parameters=self.parameters)
             if res_cen is not None:
                 loss_cen, metrics_cen = res_cen
@@ -146,7 +148,8 @@ class Server:
                     server_round=current_round, metrics=metrics_cen
                 )
 
-            # Evaluate model on a sample of available clients
+
+            # -- Distributed evaluation -- Evaluate model on a sample of available clients
             res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
             if res_fed is not None:
                 loss_fed, evaluate_metrics_fed, _ = res_fed
