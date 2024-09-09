@@ -114,7 +114,7 @@ class Server:
             log(INFO, "[ROUND %s]", current_round)
             
             # -- Additional distributed evaluation -- Descriptor extraction
-            res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
+            res_fed = self.evaluate_round(server_round=current_round, timeout=timeout, descriptor_extraction=True)
 
 
             # -- Train model and replace previous global model
@@ -170,6 +170,7 @@ class Server:
         self,
         server_round: int,
         timeout: Optional[float],
+        descriptor_extraction: bool = False,
     ) -> Optional[
         Tuple[Optional[float], Dict[str, Scalar], EvaluateResultsAndFailures]
     ]:
@@ -179,6 +180,7 @@ class Server:
             server_round=server_round,
             parameters=self.parameters,
             client_manager=self._client_manager,
+            descriptor_extraction=descriptor_extraction,                           #
         )
         if not client_instructions:
             log(INFO, "configure_evaluate: no clients selected, skipping evaluation")

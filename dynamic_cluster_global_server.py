@@ -427,7 +427,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
     ############################################################################################################  
     # Override configure_evaluate method to add custom configuration
     def configure_evaluate(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
+        self, server_round: int, parameters: Parameters, client_manager: ClientManager, descriptor_extraction: bool = False
     ) -> List[Tuple[ClientProxy, EvaluateIns]]:
         """Configure the next round of evaluation."""
         # Do not configure federated evaluation if fraction eval is 0.
