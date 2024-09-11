@@ -114,7 +114,12 @@ class Server:
             log(INFO, "[ROUND %s]", current_round)
             
             # -- Additional distributed evaluation -- Descriptor extraction
-            res_fed = self.evaluate_round(server_round=current_round, timeout=timeout, descriptor_extraction=True)
+            # res_fed = self.evaluate_round(server_round=current_round, timeout=timeout, descriptor_extraction=True)
+            res_fit = self.fit_round(
+                server_round=current_round,
+                timeout=timeout,
+                descriptor_extraction=True,
+            )
 
 
             # -- Train model and replace previous global model
@@ -210,7 +215,11 @@ class Server:
         aggregated_result: Tuple[
             Optional[float],
             Dict[str, Scalar],
-        ] = self.strategy.aggregate_evaluate(server_round, results, failures)
+        ] = self.strategy.aggregate_evaluate(server_round, 
+                                             results, 
+                                             failures,
+                                             descriptor_extraction=descriptor_extraction
+                                             )
 
         loss_aggregated, metrics_aggregated = aggregated_result
         return loss_aggregated, metrics_aggregated, (results, failures)
@@ -219,6 +228,7 @@ class Server:
         self,
         server_round: int,
         timeout: Optional[float],
+        descriptor_extraction: bool = False,
     ) -> Optional[
         Tuple[Optional[Parameters], Dict[str, Scalar], FitResultsAndFailures]
     ]:
@@ -228,6 +238,7 @@ class Server:
             server_round=server_round,
             parameters=self.parameters,
             client_manager=self._client_manager,
+            descriptor_extraction=descriptor_extraction,
         )
 
         if not client_instructions:
@@ -258,7 +269,10 @@ class Server:
         aggregated_result: Tuple[
             Optional[Parameters],
             Dict[str, Scalar],
-        ] = self.strategy.aggregate_fit(server_round, results, failures)
+        ] = self.strategy.aggregate_fit(server_round, 
+                                        results, 
+                                        failures, 
+                                        descriptor_extraction=descriptor_extraction)
 
         parameters_aggregated, metrics_aggregated = aggregated_result
         return parameters_aggregated, metrics_aggregated, (results, failures)

@@ -15,7 +15,7 @@ sleep 15  # Sleep for 2s to give the server enough time to start
 
 for i in $(seq 1 $n_clients); do
     echo "Starting client ID $i"
-    python client.py --id "$i" &
+    python client_dynamic.py --id "$i" &
 done
  
 # This will allow you to use CTRL+C to stop all background processes

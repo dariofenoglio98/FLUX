@@ -13,6 +13,18 @@ METHOD:
 
 """
 
+
+## NOTE: p(x) can be otbained accurately with a generative model, and it does not requires samples on the server side
+## NOTE: p(x) describe a the distribution of the data, and with the latent space extraction we are trying to describe 
+##       the distribution of the data in a lower dimension but so far we are using only the mean which is not enough. 
+##       Think about adding also the variance to the latent space and others
+
+## **What if**: we train locally with DP a VAE to learn p(x) in the fist round or when needed (we just need one round 
+##       and something like 30 epochs), then use the VAE to define the distribution of the data (or generate the data
+##       on the server and then use others method to perform cluster on client data - ask daniel for Gaussian Mixture).
+##       This can still be combined with the label-wise loss for evaluating the p(y) and p(x|y) on the server side.
+
+
 # Libraries
 import flwr as fl
 from modified_flwr import app
@@ -71,6 +83,7 @@ def fit_config(server_round: int):
         "tot_rounds": cfg.n_rounds,
         "min_latent_space": 0,
         "max_latent_space": max_latent_space,
+        "extract_descriptors": False,
     }
     return config
 
@@ -155,6 +168,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         server_round: int,
         results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+        descriptor_extraction: bool = False,
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate model weights using weighted average and store checkpoint"""
         
@@ -162,106 +176,101 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         # Client descriptors analysis
         ################################################################################
-        # Update client cid list   
-        self.client_cid_list = []
-        for client in results:
-            self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
+        # # Update client cid list   
+        # self.client_cid_list = []
+        # for client in results:
+        #     self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
         
-        # Extract client descriptors
-        client_descr = []
-        client_cid = []
-        for _, res in results:
-            # res.num_examples, res.metrics
-            loss_pc = json.loads(res.metrics["loss_pc"])
-            latent_space = json.loads(res.metrics["latent_space"])
-            client_cid.append(res.metrics["cid"])
-            # concatenate the descriptors
-            client_descr.append(loss_pc + latent_space)
+        # # Extract client descriptors
+        # client_descr = []
+        # client_cid = []
+        # for _, res in results:
+        #     # res.num_examples, res.metrics
+        #     loss_pc = json.loads(res.metrics["loss_pc"])
+        #     latent_space = json.loads(res.metrics["latent_space"])
+        #     client_cid.append(res.metrics["cid"])
+        #     # concatenate the descriptors
+        #     client_descr.append(loss_pc + latent_space)
         
-        # Normalizing descriptor matrix
-        client_descr = np.array(client_descr)
-        # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
-        scaler = MinMaxScaler() # StandardScaler()
-        client_descr_scaled_1 = scaler.fit_transform(client_descr)
-        # print(f"scaled_data: {client_descr_scaled_1}")
-        # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
-        loss_pc = client_descr[:, :cfg.n_classes]
-        latent_space = client_descr[:, cfg.n_classes:]
-        scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-        latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-        client_descr_scaled_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
-        # print(f"scaled_data_2: {client_descr_scaled_2}")
+        # # Normalizing descriptor matrix
+        # client_descr = np.array(client_descr)
+        # # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
+        # scaler = MinMaxScaler() # StandardScaler()
+        # client_descr_scaled_1 = scaler.fit_transform(client_descr)
+        # # print(f"scaled_data: {client_descr_scaled_1}")
+        # # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
+        # loss_pc = client_descr[:, :cfg.n_classes]
+        # latent_space = client_descr[:, cfg.n_classes:]
+        # scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+        # latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+        # client_descr_scaled_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
+        # # print(f"scaled_data_2: {client_descr_scaled_2}")
         
-        # TODO: choose the best method for normalization
-        client_descr_scaled = client_descr_scaled_2
+        # # TODO: choose the best method for normalization
+        # client_descr_scaled = client_descr_scaled_2
         
         
         ###############################################################################            
         # Clustering
         ###############################################################################
-        if self.cluster_do:
-            print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
-            self.cluster_done = True
-            self.cluster_do = False
+        # if self.cluster_do:
+        #     print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
+        #     self.cluster_done = True
+        #     self.cluster_do = False
             
-            # Range of cluster numbers to try
-            range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
+        #     # Range of cluster numbers to try
+        #     range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
 
-            # Store inertia (sum of squared distances to centroids) and silhouette scores
-            inertia = []
-            silhouette_scores = []
-            for n_clusters in range_n_clusters:
-                kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-                cluster_labels = kmeans.fit_predict(client_descr_scaled)
-                inertia.append(kmeans.inertia_)
+        #     # Store inertia (sum of squared distances to centroids) and silhouette scores
+        #     inertia = []
+        #     silhouette_scores = []
+        #     for n_clusters in range_n_clusters:
+        #         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        #         cluster_labels = kmeans.fit_predict(client_descr_scaled)
+        #         inertia.append(kmeans.inertia_)
                 
-                # Calculate silhouette score and append
-                silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
-                silhouette_scores.append(silhouette_avg)
+        #         # Calculate silhouette score and append
+        #         silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
+        #         silhouette_scores.append(silhouette_avg)
         
-            # # Plot inertia (Elbow Method) and silhouette scores
-            utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
+        #     # # Plot inertia (Elbow Method) and silhouette scores
+        #     utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
 
-            # Identify the best number of clusters based on the highest silhouette score
-            best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
+        #     # Identify the best number of clusters based on the highest silhouette score
+        #     best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
 
-            # Apply PCA to reduce the data to 2D for visualization
-            pca = PCA(n_components=2)
-            X_reduced = pca.fit_transform(client_descr_scaled)
+        #     # Apply PCA to reduce the data to 2D for visualization
+        #     pca = PCA(n_components=2)
+        #     X_reduced = pca.fit_transform(client_descr_scaled)
 
-            # Apply KMeans with the best number of clusters
-            kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
-            cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
-            # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
-            # Plot the identified clusters with the best score/number of clusters
-            utils.cluster_plot(X_reduced, cluster_labels_kmeans, client_cid, server_round, name="KMeans")
+        #     # Apply KMeans with the best number of clusters
+        #     kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
+        #     cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
+        #     # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
+        #     # Plot the identified clusters with the best score/number of clusters
+        #     utils.cluster_plot(X_reduced, cluster_labels_kmeans, client_cid, server_round, name="KMeans")
 
-            # Apply DBSCAN (doesn't require specifying the number of clusters)
-            # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
-            # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
-            # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
-            # Plot the identified DBSCAN clusters
-            # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
+        #     # Apply DBSCAN (doesn't require specifying the number of clusters)
+        #     # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
+        #     # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
+        #     # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
+        #     # Plot the identified DBSCAN clusters
+        #     # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
             
-            # HDBSCAN
-            clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
-            cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
-            if min(cluster_labels_hdbscan) < 0:
-                cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
-            # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
-            # Plot the identified HDBSCAN clusters
-            utils.cluster_plot(X_reduced, cluster_labels_hdbscan, client_cid, server_round, name="HDBSCAN")
+        #     # HDBSCAN
+        #     clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
+        #     cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
+        #     if min(cluster_labels_hdbscan) < 0:
+        #         cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
+        #     # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
+        #     # Plot the identified HDBSCAN clusters
+        #     utils.cluster_plot(X_reduced, cluster_labels_hdbscan, client_cid, server_round, name="HDBSCAN")
             
-            # Choose the best clustering methods
-            self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
-            self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
-            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+        #     # Choose the best clustering methods
+        #     self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
+        #     self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+        #     print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
 
-        
-        
-        ################################################################################
-        # Federated averaging aggregation
-        ################################################################################
         # Federated averaging - from traditional code
         if not results:
             return None, {}
@@ -269,27 +278,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if not self.accept_failures and failures:
             return None, {}
 
-        # Convert results
-        weights_results = [
-            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
-            for _, fit_res in results
-        ]
-        
-        # i can skip this part when cluster_done is False, but i still need aggregated_parameters_global to pass
-        aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
-        self.aggregated_parameters_global = aggregated_parameters_global
-        
-        if self.cluster_done:
-            # Split aggregation into clusters
-            client_clusters = {i: [] for i in range(self.n_clusters)}
-            for i, cluster in enumerate(self.cluster_labels.values()):
-                client_clusters[cluster].append(weights_results[i])
-                
-            # Aggregate each cluster
-            self.aggregated_cluster_parameters = []
-            for cluster in client_clusters.values():
-                    self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
-        
         # Aggregate custom metrics if aggregation fn was provided   NO FIT METRICS AGGREGATION FN PROVIDED - SKIPPED FOR NOW
         aggregated_metrics = {}
         if self.fit_metrics_aggregation_fn:
@@ -297,24 +285,92 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             aggregated_metrics = self.fit_metrics_aggregation_fn(fit_metrics)
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No fit_metrics_aggregation_fn provided")
-            
-            
-        ################################################################################
-        # Save model
-        ################################################################################
-        if aggregated_parameters_global is not None:
 
+
+        ################################################################################
+        # Extract descriptors from results
+        ################################################################################
+        if aggregated_metrics["accuracy"] > cfg.th_accuracy and descriptor_extraction:
+            self.cluster_do = True
+            # NEW CLUSTERING ROUND - RECEIVE DESCRIPTORS FROM CLIENTS - CLUSTER - MODEL AGGREGATION
+            # Extract descriptors from results
+            client_descr_scaled = self.extract_descriptors_from_results(results)
+            # Cluster clients
+            self.clustering(server_round, client_descr_scaled)
+            # Aggregate model TODO: assign the closest cluster model to each clients
+            weights_results = [
+                (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+                for _, fit_res in results
+            ]
+            # Split aggregation into clusters
+            client_clusters = {i: [] for i in range(self.n_clusters)}
+            for i, cluster in enumerate(self.cluster_labels.values()):
+                client_clusters[cluster].append(weights_results[i]) 
+            # Aggregate each cluster
+            self.aggregated_cluster_parameters = []
+            for cluster in client_clusters.values():
+                    self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
+            
+            # # Update the max_latent_space for the next round
+            max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
+            global max_latent_space 
+            max_latent_space = 1.2 * max_client_latent_space 
+
+            # Saving evaluation model
             print(f"Saving round {server_round} aggregated_parameters...")
             # Convert `Parameters` to `List[np.ndarray]`
-            aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(aggregated_parameters_global)
+            aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
             # Convert `List[np.ndarray]` to PyTorch`state_dict`
             params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             self.model.load_state_dict(state_dict, strict=True)
             # Save the model
-            torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
+            torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
+            
+            return self.aggregated_parameters_global, aggregated_metrics
         
-        if self.cluster_done:
+        ################################################################################
+        # Federated averaging aggregation
+        ################################################################################
+        else:
+            # Convert results
+            weights_results = [
+                (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+                for _, fit_res in results
+            ]
+            
+            # i can skip this part when cluster_done is False, but i still need aggregated_parameters_global to pass
+            aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
+            self.aggregated_parameters_global = aggregated_parameters_global
+
+            if self.cluster_do:
+                # Split aggregation into clusters
+                client_clusters = {i: [] for i in range(self.n_clusters)}
+                for i, cluster in enumerate(self.cluster_labels.values()):
+                    client_clusters[cluster].append(weights_results[i])
+                    
+                # Aggregate each cluster
+                self.aggregated_cluster_parameters = []
+                for cluster in client_clusters.values():
+                        self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
+        
+         
+            ################################################################################
+            # Save model
+            ################################################################################
+            if aggregated_parameters_global is not None:
+
+                print(f"Saving round {server_round} aggregated_parameters...")
+                # Convert `Parameters` to `List[np.ndarray]`
+                aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(aggregated_parameters_global)
+                # Convert `List[np.ndarray]` to PyTorch`state_dict`
+                params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
+                state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+                self.model.load_state_dict(state_dict, strict=True)
+                # Save the model
+                torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
+            
+            # if self.cluster_done:
             # Save the aggregated cluster models
             for i, aggregated_cluster_parameters in enumerate(self.aggregated_cluster_parameters):
                 print(f"Saving round {server_round} aggregated_cluster_parameters_{i}...")
@@ -326,8 +382,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 self.model.load_state_dict(state_dict, strict=True)
                 # Save the model
                 torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}_cluster_{i}.pth")
-        
-        return aggregated_parameters_global, aggregated_metrics
+            
+            return aggregated_parameters_global, aggregated_metrics
     
     
     ############################################################################################################
@@ -338,6 +394,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         server_round: int,
         results: List[Tuple[ClientProxy, EvaluateRes]],
         failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
+        descriptor_extraction: bool = False,
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         """Aggregate evaluation losses using weighted average."""
         if not results:
@@ -363,35 +420,176 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             log(WARNING, "No evaluate_metrics_aggregation_fn provided")
         
         print(f"\033[93mRound {server_round} - Aggregated loss: {loss_aggregated} - Aggregated metrics: {metrics_aggregated}\033[0m")
-        if metrics_aggregated["accuracy"] > cfg.th_accuracy and not self.cluster_done:
-            self.cluster_do = True
-            print(f"\033[93mRound {server_round} - Clustering flag: {self.cluster_do}\033[0m")
-            
-            # Saving evaluation model
-            print(f"Saving round {server_round} aggregated_parameters...")
-            # Convert `Parameters` to `List[np.ndarray]`
-            aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
-            # Convert `List[np.ndarray]` to PyTorch`state_dict`
-            params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
-            state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-            self.model.load_state_dict(state_dict, strict=True)
-            # Save the model
-            torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
         
-        # Update the max_latent_space for the next round
-        max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        global max_latent_space 
-        max_latent_space = 1.02 * max_client_latent_space 
+        
+        # if metrics_aggregated["accuracy"] > cfg.th_accuracy and descriptor_extraction:
+        #     self.cluster_do = True
+        #     # NEW CLUSTERING ROUND - RECEIVE DESCRIPTORS FROM CLIENTS - CLUSTER - MODEL AGGREGATION
+        #     # Extract descriptors from results
+        #     client_descr_scaled = self.extract_descriptors_from_results(results)
+        #     # Cluster clients
+        #     self.clustering(server_round, client_descr_scaled)
+        #     # Aggregate model TODO: assign the closest cluster model to each clients
+        #     weights_results = [
+        #         (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+        #         for _, fit_res in results
+        #     ]
+        #     # Split aggregation into clusters
+        #     client_clusters = {i: [] for i in range(self.n_clusters)}
+        #     for i, cluster in enumerate(self.cluster_labels.values()):
+        #         client_clusters[cluster].append(weights_results[i]) 
+        #     # Aggregate each cluster
+        #     self.aggregated_cluster_parameters = []
+        #     for cluster in client_clusters.values():
+        #             self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
+            
+        #     # # Update the max_latent_space for the next round
+        #     max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
+        #     global max_latent_space 
+        #     max_latent_space = 1.2 * max_client_latent_space 
+
+        #     # Saving evaluation model
+        #     print(f"Saving round {server_round} aggregated_parameters...")
+        #     # Convert `Parameters` to `List[np.ndarray]`
+        #     aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
+        #     # Convert `List[np.ndarray]` to PyTorch`state_dict`
+        #     params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
+        #     state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+        #     self.model.load_state_dict(state_dict, strict=True)
+        #     # Save the model
+        #     torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
 
         return loss_aggregated, metrics_aggregated
+        
+        # if metrics_aggregated["accuracy"] > cfg.th_accuracy and not self.cluster_done:
+        #     self.cluster_do = True
+        #     print(f"\033[93mRound {server_round} - Clustering flag: {self.cluster_do}\033[0m")
+            
+        #     # Saving evaluation model
+        #     print(f"Saving round {server_round} aggregated_parameters...")
+        #     # Convert `Parameters` to `List[np.ndarray]`
+        #     aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
+        #     # Convert `List[np.ndarray]` to PyTorch`state_dict`
+        #     params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
+        #     state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+        #     self.model.load_state_dict(state_dict, strict=True)
+        #     # Save the model
+        #     torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
+        
+        # # Update the max_latent_space for the next round
+        # max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
+        # global max_latent_space 
+        # max_latent_space = 1.02 * max_client_latent_space 
+
+        # return loss_aggregated, metrics_aggregated
     
+    
+    ############################################################################################################
+    # Extract descriptors from results
+    ############################################################################################################
+    def extract_descriptors_from_results(self, results: List[Tuple[ClientProxy, EvaluateRes]]):
+            # Update client cid list   
+            self.client_cid_list = []
+            for client in results:
+                self.client_cid_list.append(client[0].cid)     # Automatically assigned cid by Flower
+            
+            # Extract client descriptors
+            client_descr = []
+            self.client_cid = []
+            for _, res in results:
+                # res.num_examples, res.metrics
+                loss_pc = json.loads(res.metrics["loss_pc"])
+                latent_space = json.loads(res.metrics["latent_space"])
+                self.client_cid.append(res.metrics["cid"])
+                # concatenate the descriptors
+                client_descr.append(loss_pc + latent_space)
+            
+            # Normalizing descriptor matrix
+            client_descr = np.array(client_descr)
+            # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
+            scaler = MinMaxScaler() # StandardScaler()
+            client_descr_scaled_1 = scaler.fit_transform(client_descr)
+            # print(f"scaled_data: {client_descr_scaled_1}")
+            # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
+            loss_pc = client_descr[:, :cfg.n_classes]
+            latent_space = client_descr[:, cfg.n_classes:]
+            scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+            latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+            client_descr_scaled_2 = np.hstack((scaled_loss_pc, latent_space_pc)) # TODO: we can also weight them (loss and latent) differently here, by multiplying them by a factor
+            # print(f"scaled_data_2: {client_descr_scaled_2}")
+            
+            # TODO: choose the best method for normalization
+            return client_descr_scaled_2
+
+
+    ############################################################################################################
+    # Cluster clients
+    ############################################################################################################
+    def clustering(self, server_round: int, client_descr_scaled):
+        print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
+        self.cluster_done = True
+        self.cluster_do = False
+        
+        # Range of cluster numbers to try
+        range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
+
+        # Store inertia (sum of squared distances to centroids) and silhouette scores
+        inertia = []
+        silhouette_scores = []
+        for n_clusters in range_n_clusters:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            cluster_labels = kmeans.fit_predict(client_descr_scaled)
+            inertia.append(kmeans.inertia_)
+            
+            # Calculate silhouette score and append
+            silhouette_avg = silhouette_score(client_descr_scaled, cluster_labels)
+            silhouette_scores.append(silhouette_avg)
+    
+        # # Plot inertia (Elbow Method) and silhouette scores
+        utils.plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round)
+
+        # Identify the best number of clusters based on the highest silhouette score
+        best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
+
+        # Apply PCA to reduce the data to 2D for visualization
+        pca = PCA(n_components=2)
+        X_reduced = pca.fit_transform(client_descr_scaled)
+
+        # Apply KMeans with the best number of clusters
+        kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
+        cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
+        # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
+        # Plot the identified clusters with the best score/number of clusters
+        utils.cluster_plot(X_reduced, cluster_labels_kmeans, self.client_cid, server_round, name="KMeans")
+
+        # Apply DBSCAN (doesn't require specifying the number of clusters)
+        # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
+        # cluster_labels_dbscan = clustering.fit_predict(client_descr_scaled)
+        # print(f"DBSCAN cluster_labels: {cluster_labels_dbscan}")
+        # Plot the identified DBSCAN clusters
+        # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
+        
+        # HDBSCAN
+        clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
+        cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
+        if min(cluster_labels_hdbscan) < 0:
+            cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
+        # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
+        # Plot the identified HDBSCAN clusters
+        utils.cluster_plot(X_reduced, cluster_labels_hdbscan, self.client_cid, server_round, name="HDBSCAN")
+        
+        # Choose the best clustering methods
+        self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
+        self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+        print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+
 
     ############################################################################################################
     # Configure fit - Send custom configuration to clients for training
     ############################################################################################################
     # Override configure_fit method to add custom configuration
     def configure_fit(
-        self, server_round: int, parameters: Parameters, client_manager: ClientManager
+        self, server_round: int, parameters: Parameters, client_manager: ClientManager, descriptor_extraction: bool = False
     ) -> List[Tuple[ClientProxy, FitIns]]:
         """Configure the next round of training."""
         config = {}
@@ -407,18 +605,25 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             num_clients=sample_size, min_num_clients=min_num_clients
         )
         
-        # if cluster is not done use global otherwise use cluster aggregation
-        if not self.cluster_done:
-            # GLOBAL TRAINING
-            fit_ins = FitIns(parameters, config)
-            return [(client, fit_ins) for client in clients]
-        else:           
-            # CLUSTERED AGGREGATION - Instrucions for clients - custom fit_ins for each client 
-            client_cids_sampled = [client.cid for client in clients]
-            fit_ins = []
-            for c in client_cids_sampled:
-                fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-            return [(client, fit_ins[i]) for i, client in enumerate(clients)]
+        if descriptor_extraction:
+            # GLOBAL EVALUATION - SEND GLOBAL MODEL TO ALL CLIENTS FOR DESCRIPTOR EXTRACTION
+            config["extract_descriptors"] = True
+            evaluate_ins = EvaluateIns(parameters, config)
+            return [(client, evaluate_ins) for client in clients]
+        else: 
+            config["extract_descriptors"] = False
+            # if cluster is not done use global otherwise use cluster aggregation
+            if not self.cluster_do:
+                # GLOBAL TRAINING
+                fit_ins = FitIns(parameters, config)
+                return [(client, fit_ins) for client in clients]
+            else:           
+                # CLUSTERED AGGREGATION - Instrucions for clients - custom fit_ins for each client 
+                client_cids_sampled = [client.cid for client in clients]
+                fit_ins = []
+                for c in client_cids_sampled:
+                    fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
+                return [(client, fit_ins[i]) for i, client in enumerate(clients)]
         
       
     
@@ -448,17 +653,37 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             num_clients=sample_size, min_num_clients=min_num_clients
         )
         
-        if not self.cluster_done:
-            # GLOBAL EVALUATION
+        if not self.cluster_do:
+            # GLOBAL EVALUATION - SEND GLOBAL MODEL TO ALL CLIENTS FOR DESCRIPTOR EXTRACTION
+            config["extract_descriptors"] = True
             evaluate_ins = EvaluateIns(parameters, config)
             return [(client, evaluate_ins) for client in clients]
         else:
-            # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
-            client_cids_sampled = [client.cid for client in clients]
-            evaluate_ins = []
-            for c in client_cids_sampled:
-                evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-            return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
+            if descriptor_extraction:
+                # GLOBAL EVALUATION - SEND GLOBAL MODEL TO ALL CLIENTS FOR DESCRIPTOR EXTRACTION
+                config["extract_descriptors"] = True
+                evaluate_ins = EvaluateIns(parameters, config)
+                return [(client, evaluate_ins) for client in clients]
+            else:
+                # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
+                config["extract_descriptors"] = False
+                client_cids_sampled = [client.cid for client in clients]
+                evaluate_ins = []
+                for c in client_cids_sampled:
+                    evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
+                return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
+        
+        # if not self.cluster_done:
+        #     # GLOBAL EVALUATION
+        #     evaluate_ins = EvaluateIns(parameters, config)
+        #     return [(client, evaluate_ins) for client in clients]
+        # else:
+        #     # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
+        #     client_cids_sampled = [client.cid for client in clients]
+        #     evaluate_ins = []
+        #     for c in client_cids_sampled:
+        #         evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
+        #     return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
 
 
 
@@ -514,6 +739,7 @@ def main() -> None:
         fraction_fit=1.0, # Sample 100 % of available clients for training
         fraction_evaluate=1.0, # Sample 100 % of available clients for evaluation
         evaluate_metrics_aggregation_fn=weighted_average,
+        fit_metrics_aggregation_fn=weighted_average,
         on_evaluate_config_fn=fit_config,
         on_fit_config_fn=fit_config,
         dataset=cfg.dataset_name,
