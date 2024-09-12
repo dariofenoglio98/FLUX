@@ -55,7 +55,7 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         # Set the model parameters
         self.set_parameters(parameters)
-        # print(f"Client {self.client_id} - First layer weights: {self.model.conv1.weight[0][0]}")
+        print(f"FIT: Client {self.client_id} - First layer weights: {self.model.conv1.weight[0][0]}")
 
         # Descriptor extraction - only evaluation no training
         if config["extract_descriptors"]:
