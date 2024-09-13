@@ -108,11 +108,14 @@ def cluster_plot(X_reduced, cluster_labels, client_cid, server_round, name="KMea
     # Create a folder to save the plots
     if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
         os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
-        
+    
+    # number of clusters - only number of cluster_labels - no string element
+    n_clusters = np.unique([n for n in cluster_labels if n.isnumeric()]).shape[0]
+    
     # Plot the clusters
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=X_reduced[:, 0], y=X_reduced[:, 1], hue=cluster_labels, palette="deep", legend="full", s=100)
-    plt.title(f'{name} ({len(set(cluster_labels))} Clusters) - R.{server_round}', fontsize=18)
+    plt.title(f'{name} ({n_clusters} Clusters) - R.{server_round}', fontsize=18)
     plt.xlabel('PC1', fontsize=16)
     plt.ylabel('PC2', fontsize=16)
     # Annotate client id

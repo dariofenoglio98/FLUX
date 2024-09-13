@@ -190,11 +190,13 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No fit_metrics_aggregation_fn provided")
 
+        # VARIABLE TO START DESCRIPTOR EXTRACTION
         if self.no_clusters_round_counter > 0:
             self.no_clusters_round_counter -= 1
 
+
         ################################################################################
-        # Extract descriptors from results
+        # Extract descriptors from results - clustering - aggregation
         ################################################################################
         if self.accuracy_reached > cfg.th_accuracy and descriptor_extraction and self.no_clusters_round_counter==0:
             print(f"\033[93mCLUSTERING...\033[0m")
@@ -239,7 +241,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         
         ################################################################################
-        # Federated averaging aggregation
+        # Federated averaging aggregation and cluster aggregation
         ################################################################################
         elif not descriptor_extraction:
             # Convert results
@@ -264,10 +266,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 for cluster in client_clusters.values():
                         self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
         
-         
-            ################################################################################
             # Save model
-            ################################################################################
             if aggregated_parameters_global is not None:
 
                 print(f"Saving round {server_round} aggregated_parameters...")
@@ -280,7 +279,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Save the model
                 torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
             
-            # if self.cluster_done:
             # Save the aggregated cluster models
             for i, aggregated_cluster_parameters in enumerate(self.aggregated_cluster_parameters):
                 print(f"Saving round {server_round} aggregated_cluster_parameters_{i}...")
@@ -295,6 +293,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             
             return aggregated_parameters_global, aggregated_metrics
         
+        
+        ############################################################################
+        # No aggregation 
+        ############################################################################
         else:
             return None, {}
     
@@ -310,6 +312,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         descriptor_extraction: bool = False,
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         """Aggregate evaluation losses using weighted average."""
+        
         if not results:
             return None, {}
         # Do not aggregate if there are failures and failures are not accepted
@@ -336,69 +339,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         if metrics_aggregated["accuracy"] > cfg.th_accuracy:
             self.accuracy_reached = metrics_aggregated["accuracy"]
-            
-        
-        
-        # if metrics_aggregated["accuracy"] > cfg.th_accuracy and descriptor_extraction:
-        #     self.cluster_do = True
-        #     # NEW CLUSTERING ROUND - RECEIVE DESCRIPTORS FROM CLIENTS - CLUSTER - MODEL AGGREGATION
-        #     # Extract descriptors from results
-        #     client_descr_scaled = self.extract_descriptors_from_results(results)
-        #     # Cluster clients
-        #     self.clustering(server_round, client_descr_scaled)
-        #     # Aggregate model TODO: assign the closest cluster model to each clients
-        #     weights_results = [
-        #         (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
-        #         for _, fit_res in results
-        #     ]
-        #     # Split aggregation into clusters
-        #     client_clusters = {i: [] for i in range(self.n_clusters)}
-        #     for i, cluster in enumerate(self.cluster_labels.values()):
-        #         client_clusters[cluster].append(weights_results[i]) 
-        #     # Aggregate each cluster
-        #     self.aggregated_cluster_parameters = []
-        #     for cluster in client_clusters.values():
-        #             self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
-            
-        #     # # Update the max_latent_space for the next round
-        #     max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        #     global max_latent_space 
-        #     max_latent_space = 1.2 * max_client_latent_space 
-
-        #     # Saving evaluation model
-        #     print(f"Saving round {server_round} aggregated_parameters...")
-        #     # Convert `Parameters` to `List[np.ndarray]`
-        #     aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
-        #     # Convert `List[np.ndarray]` to PyTorch`state_dict`
-        #     params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
-        #     state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-        #     self.model.load_state_dict(state_dict, strict=True)
-        #     # Save the model
-        #     torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
 
         return loss_aggregated, metrics_aggregated
-        
-        # if metrics_aggregated["accuracy"] > cfg.th_accuracy and not self.cluster_done:
-        #     self.cluster_do = True
-        #     print(f"\033[93mRound {server_round} - Clustering flag: {self.cluster_do}\033[0m")
-            
-        #     # Saving evaluation model
-        #     print(f"Saving round {server_round} aggregated_parameters...")
-        #     # Convert `Parameters` to `List[np.ndarray]`
-        #     aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
-        #     # Convert `List[np.ndarray]` to PyTorch`state_dict`
-        #     params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
-        #     state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-        #     self.model.load_state_dict(state_dict, strict=True)
-        #     # Save the model
-        #     torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
-        
-        # # Update the max_latent_space for the next round
-        # max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        # global max_latent_space 
-        # max_latent_space = 1.02 * max_client_latent_space 
-
-        # return loss_aggregated, metrics_aggregated
     
     
     ############################################################################################################
@@ -474,13 +416,16 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Apply PCA to reduce the data to 2D for visualization
         pca = PCA(n_components=2)
         X_reduced = pca.fit_transform(client_descr_scaled)
-
         # Apply KMeans with the best number of clusters
         kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=42)
         cluster_labels_kmeans = kmeans_best.fit_predict(client_descr_scaled)
-        # print(f"KMeans cluster_labels: {cluster_labels_kmeans}")
+        centroids_kmeans = kmeans_best.cluster_centers_
+        centroids_kmeans_reduced = pca.transform(centroids_kmeans)
+        X_reduced_kmeans_centroids = np.vstack((X_reduced, centroids_kmeans_reduced))
+        cluster_labels_kmeans_centroids = np.append(cluster_labels_kmeans, [f"C{n}" for n in np.unique(cluster_labels_kmeans)])
+        client_cid_ext = self.client_cid + [f"C{n}" for n in np.unique(cluster_labels_kmeans)]
         # Plot the identified clusters with the best score/number of clusters
-        utils.cluster_plot(X_reduced, cluster_labels_kmeans, self.client_cid, server_round, name="KMeans")
+        utils.cluster_plot(X_reduced_kmeans_centroids, cluster_labels_kmeans_centroids, client_cid_ext, server_round, name="KMeans")
 
         # Apply DBSCAN (doesn't require specifying the number of clusters)
         # clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
@@ -490,18 +435,107 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # utils.cluster_plot(X_reduced, cluster_labels_dbscan, client_cid, server_round, name="DBSCAN")
         
         # HDBSCAN
-        clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
+        clustering = HDBSCAN(min_cluster_size=2, store_centers='centroid')  # You can tune the parameters `min_cluster_size` and `min_samples`
         cluster_labels_hdbscan = clustering.fit_predict(client_descr_scaled) # Note negative values are outliers, here I make them positive for visualization
-        if min(cluster_labels_hdbscan) < 0:
-            cluster_labels_hdbscan = cluster_labels_hdbscan + abs(min(cluster_labels_hdbscan))
-        # print(f"HDBSCAN cluster_labels after: {cluster_labels_hdbscan}")
+        centroids_hdbscan, cluster_labels_hdbscan = self.calculate_hdbscan_centroids(client_descr_scaled, clustering, cluster_labels_hdbscan)
         # Plot the identified HDBSCAN clusters
-        utils.cluster_plot(X_reduced, cluster_labels_hdbscan, self.client_cid, server_round, name="HDBSCAN")
+        centroids_hdbscan_reduced = pca.transform(list(centroids_hdbscan.values()))
+        X_reduced_centroids = np.vstack((X_reduced, centroids_hdbscan_reduced))
+        cluster_labels_hdbscan_centroids = np.append(cluster_labels_hdbscan, [f"C{n}" for n in centroids_hdbscan.keys()])
+        client_cid_ext = self.client_cid + [f"C{n}" for n in centroids_hdbscan.keys()]
+        utils.cluster_plot(X_reduced_centroids, cluster_labels_hdbscan_centroids, client_cid_ext, server_round, name="HDBSCAN")
         
         # Choose the best clustering methods
         self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
         self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
+        self.centroids = {n: centroids_hdbscan[n] for n in range(self.n_clusters)}
         print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+
+
+    # def calculate_hdbscan_centroids(self, data, clustering, cluster_labels_hdbscan):
+    #     """
+    #     Calculate centroids for all clusters, including outliers, using HDBSCAN.
+
+    #     Parameters:
+    #     - data: The dataset used for clustering (numpy array or pandas DataFrame).
+    #     - clustering: The HDBSCAN clustering object after fitting.
+    #     - cluster_labels_hdbscan: The cluster labels assigned by HDBSCAN, including outliers.
+
+    #     Returns:
+    #     - centroids_dict: A dictionary with cluster labels as keys and centroids as values.
+    #     """
+    #     # Access non-outlier centroids
+    #     centroids_hdbscan = clustering.centroids_
+
+    #     # Create a dictionary to store centroids for all clusters (including outliers)
+    #     centroids_dict = {}
+
+    #     # Handle non-outlier centroids
+    #     unique_labels = np.unique(cluster_labels_hdbscan)
+    #     non_outlier_labels = unique_labels[unique_labels >= 0]  # Ignore outliers labeled as -1
+
+    #     # Add centroids for non-outlier clusters to the dictionary
+    #     for label, centroid in zip(non_outlier_labels, centroids_hdbscan):
+    #         centroids_dict[label] = centroid
+
+    #     # Handle outliers (clusters labeled as -1, -2, etc.)
+    #     outlier_labels = unique_labels[unique_labels < 0]
+
+    #     for outlier_label in outlier_labels:
+    #         outlier_points = data[cluster_labels_hdbscan == outlier_label]
+    #         if len(outlier_points) > 0:
+    #             # Compute the centroid of the outlier points
+    #             outlier_centroid = np.mean(outlier_points, axis=0)
+    #             centroids_dict[outlier_label] = outlier_centroid
+
+    #     return centroids_dict
+
+    def calculate_hdbscan_centroids(self, data, clustering, cluster_labels_hdbscan):
+        """
+        Calculate centroids for all clusters, including outliers, using HDBSCAN,
+        and shift the labels to be positive for visualization purposes.
+
+        Parameters:
+        - data: The dataset used for clustering (numpy array or pandas DataFrame).
+        - clustering: The HDBSCAN clustering object after fitting.
+        - cluster_labels_hdbscan: The cluster labels assigned by HDBSCAN, including outliers.
+
+        Returns:
+        - centroids_dict: A dictionary with adjusted (positive) cluster labels as keys and centroids as values.
+        - shifted_labels: The adjusted positive cluster labels for the dataset.
+        """
+        # Access non-outlier centroids
+        centroids_hdbscan = clustering.centroids_
+
+        # Create a dictionary to store centroids for all clusters (including outliers)
+        centroids_dict = {}
+
+        # Find the minimum cluster label (for outliers it will be negative)
+        min_label = min(cluster_labels_hdbscan)
+        shift_value = abs(min_label) if min_label < 0 else 0
+
+        # Shift all cluster labels to make them positive
+        shifted_labels = cluster_labels_hdbscan + shift_value
+
+        # Handle non-outlier centroids
+        unique_labels = np.unique(cluster_labels_hdbscan)
+        non_outlier_labels = unique_labels[unique_labels >= 0]  # Ignore outliers labeled as negative
+
+        # Add centroids for non-outlier clusters to the dictionary with shifted keys
+        for label, centroid in zip(non_outlier_labels, centroids_hdbscan):
+            centroids_dict[label + shift_value] = centroid
+
+        # Handle outliers (clusters labeled as -1, -2, etc.) and add them to the dictionary
+        outlier_labels = unique_labels[unique_labels < 0]
+
+        for outlier_label in outlier_labels:
+            outlier_points = data[cluster_labels_hdbscan == outlier_label]
+            if len(outlier_points) > 0:
+                # Compute the centroid of the outlier points
+                outlier_centroid = np.mean(outlier_points, axis=0)
+                centroids_dict[outlier_label + shift_value] = outlier_centroid
+
+        return centroids_dict, shifted_labels
 
 
     ############################################################################################################
@@ -549,7 +583,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 return [(client, fit_ins[i]) for i, client in enumerate(clients)]
         
       
-    
     ############################################################################################################
     # Configure evaluate - Send custom configuration to clients for evaluation
     ############################################################################################################  
@@ -583,13 +616,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             evaluate_ins = EvaluateIns(parameters, config)
             return [(client, evaluate_ins) for client in clients]
         else:
-            # if descriptor_extraction:
-            #     print(f"\033[93mSENDING BACK GLOBAL MODEL FOR TRAINING...\033[0m")
-            #     # GLOBAL EVALUATION - SEND GLOBAL MODEL TO ALL CLIENTS FOR DESCRIPTOR EXTRACTION
-            #     config["extract_descriptors"] = True
-            #     evaluate_ins = EvaluateIns(parameters, config)
-            #     return [(client, evaluate_ins) for client in clients]
-            # else:
             print(f"\033[93mSENDING BACK CLUSTER MODELS FOR EVALUATION...\033[0m")
             # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
             config["extract_descriptors"] = False
@@ -599,18 +625,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
             return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
         
-        # if not self.cluster_done:
-        #     # GLOBAL EVALUATION
-        #     evaluate_ins = EvaluateIns(parameters, config)
-        #     return [(client, evaluate_ins) for client in clients]
-        # else:
-        #     # CLUSTERED AGGREGATION - SEND BACK FOR EVALUATION EACH CLUSTER MODEL TO THE RESPECTIVE CLIENT 
-        #     client_cids_sampled = [client.cid for client in clients]
-        #     evaluate_ins = []
-        #     for c in client_cids_sampled:
-        #         evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
-        #     return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
-
+        
+        
 
 
 
