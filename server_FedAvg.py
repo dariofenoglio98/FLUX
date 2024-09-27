@@ -236,14 +236,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
 # Main
 def main() -> None:
-    # parser = argparse.ArgumentParser(description="Flower")
-    # parser.add_argument(
-    #     "--rounds",
-    #     type=int,
-    #     default=20,
-    #     help="Specifies the number of FL rounds",
-    # )
-    # args = parser.parse_args()
 
     # Start time
     start_time = time.time()
@@ -254,7 +246,7 @@ def main() -> None:
     # Create all data for clients
     utils.generate_dataset()
 
-    # Pick the indipendent test set from each client
+    # Pick the independent test set from each client
     test_x, test_y = [], []
     for client_id in range(cfg.client_number):
         data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
