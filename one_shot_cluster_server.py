@@ -256,6 +256,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
 
+            # TODO: save centroids (watch dynamic code because i already have the centroid funciton)
+
+
         
         
         ################################################################################
@@ -288,6 +291,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             self.aggregated_cluster_parameters = []
             for cluster in client_clusters.values():
                     self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster)))
+        # else:
+        #     aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))   # Global aggregation - traditional - no clustering
+        #     self.aggregated_parameters_global = aggregated_parameters_global
         
         # Aggregate custom metrics if aggregation fn was provided   NO FIT METRICS AGGREGATION FN PROVIDED - SKIPPED FOR NOW
         aggregated_metrics = {}
@@ -301,6 +307,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         # Save model
         ################################################################################
+        # TODO: save the model used for evaluation/clustering - once the pre-fixed accuracy is reached, i'm using that global model for evaluation (extract descriptors)
+        # so save that model with a proper name (because we need to use it for test-evaluation)
         if aggregated_parameters_global is not None:
 
             print(f"Saving round {server_round} aggregated_parameters...")
@@ -459,10 +467,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 evaluate_ins.append(EvaluateIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
             return [(client, evaluate_ins[i]) for i, client in enumerate(clients)]
 
-
-
-
-
 # Main
 def main() -> None:
     # parser = argparse.ArgumentParser(description="Flower")
@@ -489,7 +493,7 @@ def main() -> None:
         data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
         test_x.append(data['test_features'])
         test_y.append(data['test_labels'])
-    test_x = np.concatenate(test_x, axis=0)
+    test_x = np.concatenate(test_x, axis=0)  # TODO: do not concatenate them because we need to split them for each client - keep a list of test datasets from each client
     test_y = np.concatenate(test_y, axis=0)
     # Split the data into test subsets (final evaluation & server validation)
     test_x_server, test_x, test_y_server, test_y = train_test_split(test_x, test_y, test_size=0.5, random_state=42)
@@ -542,6 +546,13 @@ def main() -> None:
     model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
 
     # Evaluate the model on the test set
+    # TODO: load the saved evaluation global model - give to each new client the right cluster model
+    # 1. Load the evaluation model
+    # 2. Extract the descriptors () from each test client datasset
+    # 3. Check for each client dataset which centroids is the closest
+    # 4. Evaluate the respective (closest) cluster model on that client dataset 
+    # 5. Aggregate the metrics and keep client metrics for further analysis
+
     loss_test, accuracy_test = models.simple_test(model, device, test_loader)
     print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
     print(f"\033[93mNOTE: global model is evaluated, not correct!\033[0m\n")
