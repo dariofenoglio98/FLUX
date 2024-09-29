@@ -1,15 +1,15 @@
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import non_iiddata_generator_no_drifting as noniidgen
-import config as cfg
 import torch
 import os
 
+import config as cfg
+import non_iiddata_generator_no_drifting as noniidgen
 
 
-# data generation
+# Data generation with ANDA
+# TODO ANDA
 def generate_dataset():
 
     train_images, train_labels, test_images, test_labels = noniidgen.load_full_datasets(cfg.dataset_name)
@@ -38,23 +38,16 @@ def generate_dataset():
         np.save(f'./data/client_{i+1}', clients_data[i])
         print(f"Data for client {i+1} saved")
 
-
-# create folder if not exists
+# Create folders
 def create_folders():
-    # Create directories for results
-    if not os.path.exists(f"results/{cfg.model_name}/{cfg.dataset_name}"):
-        os.makedirs(f"results/{cfg.model_name}/{cfg.dataset_name}")
-    else:
-        # remove the directory and create a new one
-        os.system(f"rm -r results/{cfg.model_name}/{cfg.dataset_name}")
-        os.makedirs(f"results/{cfg.model_name}/{cfg.dataset_name}")
-    if not os.path.exists(f"histories/{cfg.model_name}/{cfg.dataset_name}"):
-        os.makedirs(f"histories/{cfg.model_name}/{cfg.dataset_name}")
-    if not os.path.exists(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}"):
-        os.makedirs(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}")
-    if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}"):
-        os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}")
+    # Clean cache
+    os.system(f"rm -r results/{cfg.model_name}/{cfg.dataset_name}")
 
+    # Create directories for results
+    os.makedirs(f"results/{cfg.model_name}/{cfg.dataset_name}")
+    os.makedirs(f"histories/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
+    os.makedirs(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
+    os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
 
 # define device
 def check_gpu(manual_seed=True, print_info=True):

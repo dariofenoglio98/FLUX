@@ -7,17 +7,19 @@ Training functions to test the models
 
 """
 
+import numpy as np  
+from math import prod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-from math import prod
-import utils
-import numpy as np  
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 
+import utils
+import non_iiddata_generator_no_drifting as noniidgen
+from non_iiddata_generator_no_drifting import merge_data
 
 #############################################################################################################
 # Models 
@@ -28,6 +30,7 @@ class LeNet5(nn.Module):
     def __init__(self, in_channels=1, num_classes=10, input_size=(28, 28)):
         super(LeNet5, self).__init__()
         self.num_classes = num_classes
+
         self.conv1 = nn.Conv2d(in_channels, 6, kernel_size=5, stride=1, padding=2)  # Convolutional layer with 6 feature maps of size 5x5
         self.pool1 = nn.AvgPool2d(kernel_size=2, stride=2)  # Subsampling layer with 6 feature maps of size 2x2
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5, stride=1)  # Convolutional layer with 16 feature maps of size 5x5
@@ -55,7 +58,6 @@ class LeNet5(nn.Module):
             return x, x_l
         else:
             return x
-    
 
 # Resnet-9 layer
 def residual_block(in_channels, out_channels, pool=False):
@@ -67,7 +69,6 @@ def residual_block(in_channels, out_channels, pool=False):
     if pool:
         layers.append(nn.MaxPool2d(2))
     return nn.Sequential(*layers)
-
 
 # ResNet-9 model
 class ResNet9(nn.Module):
@@ -106,14 +107,11 @@ class ResNet9(nn.Module):
         else:
             return x
     
-    
-
 # dictionary with the models
 models = {
     'LeNet5': LeNet5,
     'ResNet9': ResNet9,
 }    
-
 
 #############################################################################################################
 # Helper functions 
@@ -136,7 +134,6 @@ def simple_train(model, device, train_loader, optimizer, epoch, client_id=None):
         loss_list.append(loss.item())
     # print(f'Client: {client_id} - Train Epoch: {epoch} \tLoss: {sum(loss_list)/len(loss_list):.6f}')
 
-
 # simple test function
 def simple_test(model, device, test_loader):
     model.eval()
@@ -155,130 +152,6 @@ def simple_test(model, device, test_loader):
     # print(f'\nTest set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} '
     #       f'({100. * correct / len(test_loader.dataset):.0f}%)\n')
     return test_loss, accuracy
-
-# # ModelEvaluator class
-# class ModelEvaluator:
-#     def __init__(self, test_loader, device):
-#         """
-#         Initializes the ModelEvaluator with the model, device, and number of classes.
-        
-#         Args:
-#             test_loader: DataLoader with test data
-#             device: Device to run the evaluation on
-#         """
-        
-#         self.test_loader = test_loader
-#         self.device = device
-#         self.criterion = torch.nn.CrossEntropyLoss(reduction='none')
-#         self.criterion_trad = torch.nn.CrossEntropyLoss()
-        
-#         # Fit the PCA model 
-        
-
-#     def evaluate(self, model, latent=False):
-#         """
-#         Evaluates the model on the provided test data and returns various metrics.
-
-#         Args:
-#             model: Model to evaluate
-#             latent: Whether to return the latent representation of the test data
-#         """
-        
-#         # client-enhanced evaluation function
-#         # def evaluate_model_per_class(model, device, test_loader, latent=False):
-#         # Set model to evaluation mode
-#         model.eval()
-#         num_classes = model.num_classes
-
-#         # Initialize storage for metrics
-#         precision_per_class = [0] * num_classes
-#         recall_per_class = [0] * num_classes
-#         f1_per_class = [0] * num_classes
-#         accuracy_per_class = [0] * num_classes
-#         loss_per_class = [0] * num_classes
-#         class_counts = [0] * num_classes
-
-#         y_true_all = []
-#         y_pred_all = []
-#         loss_all = []
-#         latent_all = []
-#         loss_trad = 0
-#         total_samples = 0
-
-#         # Accumulate predictions and targets over batches
-#         with torch.no_grad():
-#             for data, target in self.test_loader:
-#                 data, target = data.to(self.device), target.to(self.device)
-                
-#                 # Get model predictions
-#                 if latent: 
-#                     output, latent_space = model(data, latent=True)
-#                     latent_all.extend(latent_space.cpu().numpy())
-#                 else: 
-#                     output = model(data) 
-                    
-#                 y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
-                
-#                 # Store the true and predicted labels for the batch
-#                 y_true_all.extend(target.cpu().numpy())
-#                 y_pred_all.extend(y_pred_batch.cpu().numpy())
-                
-#                 # Compute per-sample loss for the batch
-#                 batch_loss = self.criterion(output, target).cpu().numpy()
-#                 loss_all.extend(batch_loss)
-                
-#                 # Compute traditional loss for the batch
-#                 loss_trad += self.criterion_trad(output, target).item()
-                
-#                 # Accumulate the total number of samples
-#                 total_samples += len(target)
-
-#         # Convert collected predictions and true labels into tensors for processing
-#         y_true_all = torch.tensor(y_true_all)
-#         y_pred_all = torch.tensor(y_pred_all)
-#         loss_all = torch.tensor(loss_all)
-        
-#         # Average traditional loss over the total number of samples
-#         loss_trad /= total_samples
-        
-#         # Calculate traditional accuracy on the entire test set
-#         accuracy_trad = accuracy_score(y_true_all, y_pred_all)
-        
-#         # # Average latent
-#         # if latent:
-#         #     latent_all = torch.tensor(latent_all)
-#         #     latent_all = latent_all.view(latent_all.size(0), -1)
-#         #     latent_all = latent_all.mean(dim=0).numpy()
-
-#         # Iterate through each class (for MNIST, classes are 0 to 9 by default)
-#         for class_idx in range(num_classes):
-#             # Get all predictions and ground truths for the current class
-#             class_mask = (y_true_all == class_idx)  # Mask for this class
-            
-#             y_true_class = (y_true_all == class_idx).numpy().astype(int)  # Binary labels for the current class
-#             y_pred_class = (y_pred_all == class_idx).numpy().astype(int)  # Binary predictions for the current class
-            
-#             # Only calculate if there are samples for this class
-#             if class_mask.sum() > 0:
-#                 # Compute precision, recall, and F1-score for this class
-#                 precision = precision_score(y_true_class, y_pred_class, zero_division=0)
-#                 recall = recall_score(y_true_class, y_pred_class, zero_division=0)
-#                 f1 = f1_score(y_true_class, y_pred_class, zero_division=0)
-#                 accuracy = accuracy_score(y_true_class, y_pred_class)
-
-#                 # Compute the loss for this class (average the loss of samples in this class)
-#                 class_loss = loss_all[class_mask].mean().item()
-
-#                 # Update class counts and metrics
-#                 precision_per_class[class_idx] = precision
-#                 recall_per_class[class_idx] = recall
-#                 f1_per_class[class_idx] = f1
-#                 accuracy_per_class[class_idx] = accuracy
-#                 loss_per_class[class_idx] = class_loss
-#                 class_counts[class_idx] = class_mask.sum().item()
-
-#         return loss_trad, accuracy_trad, precision_per_class, recall_per_class, f1_per_class, accuracy_per_class, loss_per_class, latent_all
-
 
 # ModelEvaluator class
 class ModelEvaluator:
@@ -489,8 +362,6 @@ class ModelEvaluator:
 
         return loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space
 
-
-
 # Dataset class
 class CombinedDataset(Dataset):
     def __init__(self, features, labels, transform=None):
@@ -511,18 +382,10 @@ class CombinedDataset(Dataset):
         return x, y
 
 
-
-
 #############################################################################################################
 # test the models
 #############################################################################################################
 def main():
-    # Libraries
-    import non_iiddata_generator_no_drifting as noniidgen
-    from non_iiddata_generator_no_drifting import merge_data
-    import torch
-    import torch.optim as optim
-    from torch.utils.data import DataLoader
 
     # Training settings
     model_name = "ResNet9"   # Options: "LeNet5", "ResNet9"

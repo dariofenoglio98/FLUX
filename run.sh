@@ -5,10 +5,20 @@
 
 # import client_number from config.py
 n_clients=$(python -c "from config import client_number; print(client_number)")
+strategy=$(python -c "from config import strategy; print(strategy)")
+
 
 echo -e "\n\033[1;36mStarting server with model \033[0m\n"
 
 # python one_shot_cluster_server.py &
+# if [ $strategy == "FedAvg" ]; then
+#     python server_FedAvg.py &
+# elif [ $strategy == "dynamic_cluster_global_server" ]; then
+#     python dynamic_cluster_global_server.py &
+# else
+#     echo "Invalid strategy"
+#     exit 1
+# fi
 python server_FedAvg.py &
 # python dynamic_cluster_global_server.py &
 sleep 15  # Sleep for 2s to give the server enough time to start
