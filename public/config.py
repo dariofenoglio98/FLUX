@@ -1,18 +1,23 @@
 # Overall settings
-model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
-dataset_name = "MNIST" # ["CIFAR10", "CIFAR100" "MNIST", "FMNIST"]
-strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
-non_iid_type = 'TODO' # []
-n_clients = 2
-client_number = n_clients
 random_seed = 42
+strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
 
 # Dataset settings
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+drifting_type = 'static' # refer to ANDA page for more details
+non_iid_type = 'feature_skew' # refer to ANDA page for more details
+n_clients = 2
+client_number = n_clients # TODO remove late, keep using n_clients for all
 
+show_features = False # show generated feature details if any
+show_labels = False # show distribution of data if any
+args = {
 
+}
 
 
 # Training model settings
+model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2

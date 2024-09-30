@@ -11,7 +11,6 @@ import non_iiddata_generator_no_drifting as noniidgen
 # Data generation with ANDA
 # TODO ANDA
 def generate_dataset():
-
     train_images, train_labels, test_images, test_labels = noniidgen.load_full_datasets(cfg.dataset_name)
 
     # create data: split_feature_skew
