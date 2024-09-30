@@ -7,14 +7,11 @@ dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # refer to ANDA page for more details
 non_iid_type = 'feature_skew' # refer to ANDA page for more details
 n_clients = 2
-client_number = n_clients # TODO remove late, keep using n_clients for all
-
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
+# careful with the args applying to your settings above
 args = {
-
 }
-
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]

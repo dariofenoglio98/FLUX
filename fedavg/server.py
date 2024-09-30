@@ -164,18 +164,13 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 # Main
 def main() -> None:
 
-    # Start time
+    # Start time and create directories
     start_time = time.time()
-
-    # Create directories and datasets
     utils.create_folders()
-
-    # TODO remove
-    # utils.generate_dataset()
 
     # Pick the independent test set from each client
     test_x, test_y = [], []
-    for client_id in range(cfg.client_number):
+    for client_id in range(cfg.n_clients):
         data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
         test_x.append(data['test_features'])
         test_y.append(data['test_labels'])
@@ -198,16 +193,16 @@ def main() -> None:
         model=model, # model to be trained
         dataset=cfg.dataset_name,
         # super
-        min_fit_clients=cfg.client_number, # always all training
-        min_evaluate_clients=cfg.client_number, # always all evaluating
-        min_available_clients=cfg.client_number, # always all available
+        min_fit_clients=cfg.n_clients, # always all training
+        min_evaluate_clients=cfg.n_clients, # always all evaluating
+        min_available_clients=cfg.n_clients, # always all available
         evaluate_metrics_aggregation_fn=weighted_average,
         on_fit_config_fn=fit_config,
         on_evaluate_config_fn=fit_config,
     )
 
     # TODO 4-dim save as: Model, Dataset, Strategy, Non-IIDType (or perhaps #clients)
-    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.client_number} clients\033[0m\n")
+    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.n_clients} clients\033[0m\n")
 
     # Start Flower server and (finish all training and evaluation)
     history = fl.server.start_server(

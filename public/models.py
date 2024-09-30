@@ -197,7 +197,6 @@ class ModelEvaluator:
         loss_all = []
         latent_all = []
         latent_mean = []
-        # new_max_latent_space = max_latent_space
         loss_trad = 0
         total_samples = 0
 

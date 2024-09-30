@@ -5,37 +5,6 @@ import torch
 import os
 
 import public.config as cfg
-import non_iiddata_generator_no_drifting as noniidgen
-
-
-# Data generation with ANDA
-# TODO ANDA
-def generate_dataset():
-    train_images, train_labels, test_images, test_labels = noniidgen.load_full_datasets(cfg.dataset_name)
-
-    # create data: split_feature_skew
-    clients_data = noniidgen.split_feature_skew(
-        train_features = train_images,
-        train_labels = train_labels,
-        test_features = test_images,
-        test_labels = test_labels,
-        client_number = cfg.client_number,
-        set_rotation = cfg.set_rotation,
-        rotations = cfg.rotations,
-        scaling_rotation_low = cfg.scaling_rotation_low,
-        scaling_rotation_high = cfg.scaling_rotation_high,
-        set_color = cfg.set_color,
-        colors = cfg.colors,
-        scaling_color_low = cfg.scaling_color_low,
-        scaling_color_high = cfg.scaling_color_high,
-        random_order = cfg.random_order,
-        show_distribution = cfg.show_distribution,
-    )
-
-    # save dictionary for each client
-    for i in range(cfg.client_number):
-        np.save(f'./data/client_{i+1}', clients_data[i])
-        print(f"Data for client {i+1} saved")
 
 # Create folders
 def create_folders():

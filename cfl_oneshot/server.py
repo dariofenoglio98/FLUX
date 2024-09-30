@@ -16,26 +16,29 @@ in the same clusters. The training continues until the end.
 """
 
 # Libraries
-import flwr as fl
-import numpy as np
-from typing import List, Tuple, Union, Optional, Dict
-from flwr.common import Parameters, Scalar, Metrics
-from flwr.server.client_proxy import ClientProxy
-from flwr.common import FitRes
-import argparse
-import torch
-from torch.utils.data import DataLoader
-import os
-from logging import WARNING
-from flwr.common.logger import log
-from collections import OrderedDict
 import json
 import time
-import pandas as pd
+import torch
+import numpy as np
+from functools import reduce
+from logging import WARNING
+from torch.utils.data import DataLoader
+from collections import OrderedDict
+from typing import List, Tuple, Union, Optional, Dict
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+
 import public.config as cfg
 import public.utils as utils
 import public.models as models
-from sklearn.model_selection import train_test_split
+
+import flwr as fl
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.client_manager import ClientManager
+from flwr.common.logger import log
 from flwr.common import (
     EvaluateIns,
     EvaluateRes,
@@ -43,18 +46,11 @@ from flwr.common import (
     FitIns,
     Parameters,
     Scalar,
+    Metrics,
     ndarrays_to_parameters,
     parameters_to_ndarrays,
+    NDArrays,
 )
-from flwr.common import NDArray, NDArrays
-from functools import reduce
-from flwr.server.client_manager import ClientManager
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
-from sklearn.metrics import silhouette_score
-from sklearn.decomposition import PCA
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 # Define the max latent space as global variable
@@ -489,7 +485,7 @@ def main() -> None:
 
     # Pick the indipendent test set from each client
     test_x, test_y = [], []
-    for client_id in range(cfg.client_number):
+    for client_id in range(cfg.n_clients):
         data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
         test_x.append(data['test_features'])
         test_y.append(data['test_labels'])
@@ -511,9 +507,9 @@ def main() -> None:
     # Define strategy
     strategy = SaveModelStrategy(
         model=model, # model to be trained
-        min_fit_clients=cfg.client_number, #+cfg.n_attackers, # Never sample less than 10 clients for training
-        min_evaluate_clients=cfg.client_number, #+cfg.n_attackers,  # Never sample less than 5 clients for evaluation
-        min_available_clients=cfg.client_number, #+cfg.n_attackers, # Wait until all 10 clients are available
+        min_fit_clients=cfg.n_clients, #+cfg.n_attackers, # Never sample less than 10 clients for training
+        min_evaluate_clients=cfg.n_clients, #+cfg.n_attackers,  # Never sample less than 5 clients for evaluation
+        min_available_clients=cfg.n_clients, #+cfg.n_attackers, # Wait until all 10 clients are available
         fraction_fit=1.0, # Sample 100 % of available clients for training
         fraction_evaluate=1.0, # Sample 100 % of available clients for evaluation
         evaluate_metrics_aggregation_fn=weighted_average,
@@ -522,7 +518,7 @@ def main() -> None:
         dataset=cfg.dataset_name,
     )
 
-    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.client_number} clients\033[0m\n")
+    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.n_clients} clients\033[0m\n")
 
     # Start Flower server for three rounds of federated learning
     history = fl.server.start_server(
