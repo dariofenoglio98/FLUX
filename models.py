@@ -22,7 +22,6 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 #############################################################################################################
 # Models 
 #############################################################################################################
-
 # LeNet-5 model
 class LeNet5(nn.Module):
     def __init__(self, in_channels=1, num_classes=10, input_size=(28, 28)):
