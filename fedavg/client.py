@@ -70,7 +70,7 @@ class FlowerClient(fl.client.NumPyClient):
             self.train_fn(self.model, self.device, self.train_loader, self.optimizer, epoch, self.client_id)
 
 
-        return self.get_parameters(config), self.num_examples["train"], descriptors
+        return self.get_parameters(config), self.num_examples["train"], descriptors, #{}
     
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
