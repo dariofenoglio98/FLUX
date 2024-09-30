@@ -159,7 +159,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
         self.aggregated_parameters_global = None
-        self.cluster_done = False
+        self.first_cluster_done = False
         self.cluster_do = False
         self.accuracy_reached = 0
         self.no_clusters_round_counter = 0
@@ -206,21 +206,34 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Extract descriptors from results
             client_descr_scaled = self.extract_descriptors_from_results(results)
             # Cluster clients
-            self.clustering(server_round, client_descr_scaled)
+            centroids = self.clustering(server_round, client_descr_scaled)
             # Aggregate model TODO: assign the closest cluster model to each clients
             weights_results = [
                 (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
                 for _, fit_res in results
             ]
-            # Split aggregation into clusters
-            client_clusters = {i: [] for i in range(self.n_clusters)}
-            for i, cluster in enumerate(self.cluster_labels.values()):
-                client_clusters[cluster].append(weights_results[i]) 
-            # Aggregate each cluster
-            self.aggregated_cluster_parameters = []
-            for cluster in client_clusters.values():
-                    self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster))) # problem you are clustering the global model.. always the same
             
+            ### ------- not finished yet, think about it before ------- ###
+            if not self.first_cluster_done:
+                self.first_cluster_done = True
+                self.centroids = centroids # save centroids for the next clustering round
+                # Split aggregation into clusters
+                client_clusters = {i: [] for i in range(self.n_clusters)}
+                for i, cluster in enumerate(self.cluster_labels.values()):
+                    client_clusters[cluster].append(weights_results[i]) 
+                # Aggregate each cluster
+                self.aggregated_cluster_parameters = []
+                for cluster in client_clusters.values():
+                        self.aggregated_cluster_parameters.append(ndarrays_to_parameters(aggregate(cluster))) # problem you are clustering the global model.. always the same
+            else:
+                # Assign the closest previous cluster model to the new cluster
+                for i, centroid in centroids.items():
+                    distances = [np.linalg.norm(centroid - c) for c in self.centroids.values()]
+                    closest_cluster = np.argmin(distances)
+                    self.cluster_labels[i] = closest_cluster
+                    self.aggregated_cluster_parameters[closest_cluster] = ndarrays_to_parameters(aggregate([self.aggregated_cluster_parameters[closest_cluster], weights_results[i]]))
+            ### ------------------------------------------------------- ###   
+                  
             # # Update the max_latent_space for the next round
             max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
             global max_latent_space 
@@ -389,8 +402,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
     ############################################################################################################
     def clustering(self, server_round: int, client_descr_scaled):
         print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
-        # self.cluster_done = True
-        # self.cluster_do = True
         
         # Range of cluster numbers to try
         range_n_clusters = range(2, client_descr_scaled.shape[0])  # Adjust based on your data size
@@ -448,8 +459,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Choose the best clustering methods
         self.n_clusters = max(cluster_labels_hdbscan) + 1  # Best number of clusters
         self.cluster_labels = {cid: cluster_labels_hdbscan[i] for i, cid in enumerate(self.client_cid_list)}  # Best clustering method
-        self.centroids = {n: centroids_hdbscan[n] for n in range(self.n_clusters)}
+        centroids = {n: centroids_hdbscan[n] for n in range(self.n_clusters)}
         print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+        
+        return centroids
 
 
     # def calculate_hdbscan_centroids(self, data, clustering, cluster_labels_hdbscan):
