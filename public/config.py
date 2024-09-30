@@ -1,12 +1,18 @@
-# Config
-
 # Overall settings
-random_seed = 42
-strategy = 'fedavg' # ['fedavg', 'OneShot', 'Our']  
-
-
-# Training settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100" "MNIST", "FMNIST"]
+strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
+non_iid_type = 'TODO' # []
+n_clients = 2
+client_number = n_clients
+random_seed = 42
+
+# Dataset settings
+
+
+
+
+# Training model settings
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2
@@ -16,20 +22,6 @@ lr = 0.01
 momentum = 0.9
 seed = random_seed
 transform = None
-
-# Dataset settings
-dataset_name = "MNIST" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
-client_number = 2
-set_rotation = False
-rotations = 4
-scaling_rotation_low = 1
-scaling_rotation_high = 1
-set_color = True
-colors = 3
-scaling_color_low = 1
-scaling_color_high = 1
-random_order = True
-show_distribution = True
 
 n_classes_dict = {
     "CIFAR10": 10,
@@ -53,6 +45,5 @@ acceptable_accuracy = {
     "MNIST": 0.8,
     "FMNIST": 0.8
 }
-
 th_accuracy = acceptable_accuracy[dataset_name]
 

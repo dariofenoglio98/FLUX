@@ -1,31 +1,30 @@
 #!/bin/bash
 
-# This code is usually called from cross_validation.sh, and it starts the server and clients 
-# for the federated learning process. The server is started first, and then the clients are started.
+model_name=$(python -c "from public.config import model_name; print(model_name)")
+dataset_name=$(python -c "from public.config import dataset_name; print(dataset_name)")
+strategy=$(python -c "from public.config import strategy; print(strategy)")
+non_iid_type=$(python -c "from public.config import non_iid_type; print(non_iid_type)")
+n_clients=$(python -c "from public.config import n_clients; print(n_clients)")
 
-# import client_number from config.py
-n_clients=$(python -c "from public.config import client_number; print(client_number)")
-# strategy=$(python -c "from public.config import strategy; print(strategy)")
- 
-# run create data
-# TODO shall display:
-# Model, Dataset, Strategy, Non-IIDType, n_clients
-cd fedavg
+echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
+    MODEL: $model_name\033[0m\n\033[1;36m \
+    Dataset: $dataset_name\033[0m\n\033[1;36m \
+    Strategy: $strategy\033[0m\n\033[1;36m \
+    Data non-IID type: $non_iid_type\033[0m\n\033[1;36m \
+    Number of clients: $n_clients\033[0m\n"
 
-echo -e "\n\033[1;36mStarting server with model \033[0m\n"
+# Change to the directory of the strategy
+cd "$strategy"
 
-# python one_shot_cluster_server.py &
-# if [ $strategy == "FedAvg" ]; then
-#     python server_FedAvg.py &
-# elif [ $strategy == "dynamic_cluster_global_server" ]; then
-#     python dynamic_cluster_global_server.py &
-# else
-#     echo "Invalid strategy"
-#     exit 1
-# fi
+# Create datasets
+# TODO
+
+
+exit
+
 python server.py &
 # python dynamic_cluster_global_server.py &
-sleep 20  # Sleep for 2s to give the server enough time to start
+sleep 2  # Sleep for 2s to give the server enough time to start
 
 for i in $(seq 1 $n_clients); do
     echo "Starting client ID $i"

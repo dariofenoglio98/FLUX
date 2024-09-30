@@ -171,7 +171,7 @@ def main() -> None:
     utils.create_folders()
 
     # TODO remove
-    utils.generate_dataset()
+    # utils.generate_dataset()
 
     # Pick the independent test set from each client
     test_x, test_y = [], []
