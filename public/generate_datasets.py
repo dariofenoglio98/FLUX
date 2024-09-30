@@ -71,6 +71,8 @@ else:
         client_number = dataset['client_number']
         cluster = dataset['cluster']
         order = dataset['epoch_locker_order']
+
+        # change name to better conform        
         filename = f'./data/cur_datasets/client_{client_number}_cluster_{cluster}_order_{order}.npy'
         
         np.save(filename, dataset)

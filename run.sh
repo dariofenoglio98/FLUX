@@ -21,7 +21,6 @@ python public/generate_datasets.py
 # Change to the directory of the strategy
 cd "$strategy"
 
-
 # delete datasets and exit
 cd ../data/cur_datasets
 rm -rf *
