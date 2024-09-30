@@ -4,7 +4,7 @@ import seaborn as sns
 import torch
 import os
 
-import config as cfg
+import public.config as cfg
 import non_iiddata_generator_no_drifting as noniidgen
 
 
@@ -68,7 +68,6 @@ def check_gpu(manual_seed=True, print_info=True):
             print("CUDA is not available")
         device = 'cpu'
     return device
-
 
 # plot and save plot on server side
 def plot_loss_and_accuracy(loss, accuracy,  show=True):

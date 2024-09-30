@@ -14,11 +14,11 @@ have this code running.
 from collections import OrderedDict
 from torch.utils.data import Dataset, DataLoader
 import torch
-import utils
+import public.utils as utils
 import flwr as fl
 import argparse
-import models
-import config as cfg
+import public.models as models
+import public.config as cfg
 import numpy as np
 import json
 from sklearn.model_selection import train_test_split

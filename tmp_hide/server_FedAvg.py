@@ -22,9 +22,9 @@ import json
 import time
 from functools import reduce
 
-import config as cfg
-import utils
-import models
+import public.config as cfg
+import public.utils as utils
+import public.models as models
 
 import flwr as fl
 from flwr.common import Parameters, Scalar, Metrics
@@ -142,6 +142,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         if aggregated_parameters_global is not None:
 
+            # TODO: save only best accuracy model and loss model
+
             print(f"Saving round {server_round} aggregated_parameters...")
             # Convert `Parameters` to `List[np.ndarray]`
             aggregated_ndarrays: List[np.ndarray] = parameters_to_ndarrays(aggregated_parameters_global)
@@ -206,7 +208,6 @@ def main() -> None:
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
     )
-
 
     # EVALUATION 
 

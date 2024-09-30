@@ -2,20 +2,22 @@
 
 # Overall settings
 random_seed = 42
-strategy = 'FedAvg' # ['FedAvg', 'OneShot', 'Our']  
+strategy = 'fedavg' # ['fedavg', 'OneShot', 'Our']  
+
 
 # Training settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
-n_rounds = 10
+client_eval_ratio = 0.2
+n_rounds = 2
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
 seed = random_seed
 transform = None
 
-# dataset settings
+# Dataset settings
 dataset_name = "MNIST" # Options: "CIFAR10", "CIFAR100" "MNIST", "FMNIST"
 client_number = 2
 set_rotation = False

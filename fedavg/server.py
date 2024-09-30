@@ -22,9 +22,14 @@ import json
 import time
 from functools import reduce
 
-import config as cfg
-import utils
-import models
+import sys
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+import public.config as cfg
+import public.utils as utils
+import public.models as models
 
 import flwr as fl
 from flwr.common import Parameters, Scalar, Metrics
@@ -142,6 +147,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         if aggregated_parameters_global is not None:
 
+            # TODO: save only best accuracy model and loss model
+
             print(f"Saving round {server_round} aggregated_parameters...")
             # Convert `Parameters` to `List[np.ndarray]`
             aggregated_ndarrays: List[np.ndarray] = parameters_to_ndarrays(aggregated_parameters_global)
@@ -162,6 +169,8 @@ def main() -> None:
 
     # Create directories and datasets
     utils.create_folders()
+
+    # TODO remove
     utils.generate_dataset()
 
     # Pick the independent test set from each client
@@ -206,7 +215,6 @@ def main() -> None:
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
     )
-
 
     # EVALUATION 
 
