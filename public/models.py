@@ -103,7 +103,6 @@ class ResNet9(nn.Module):
         else:
             return x
     
-# dictionary with the models
 models = {
     'LeNet5': LeNet5,
     'ResNet9': ResNet9,
@@ -385,6 +384,7 @@ class CombinedDataset(Dataset):
 #############################################################################################################
 def main():
     # TODO ANDA deployment
+    # For simplicity, may find the old version of ANDA to test
     return
 
     # Training settings

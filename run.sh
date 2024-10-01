@@ -21,11 +21,6 @@ python public/generate_datasets.py
 # Change to the directory of the strategy
 cd "$strategy"
 
-# delete datasets and exit
-cd ../data/cur_datasets
-rm -rf *
-exit
-
 python server.py &
 # python dynamic_cluster_global_server.py &
 sleep 2  # Sleep for 2s to give the server enough time to start
@@ -40,6 +35,11 @@ done
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 # Wait for all background processes to complete
 wait
+
+# delete datasets
+cd ../data/cur_datasets
+rm -rf *
+
 # Clean up
 echo "Shutting down - processes completed correctly"
 trap - SIGTERM && kill -- -$$

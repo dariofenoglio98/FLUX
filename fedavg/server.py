@@ -1,14 +1,9 @@
 """
-This code implements the FedAvg, when it starts, the server waits for the clients to connect. When the established number 
-of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
-model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
-with FedAvg. The aggregated model is then sent to the clients for the next round of training. The server saves the model 
-and metrics after each round.
+CFL implementation of fedavg, server side.
 
 Code to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
 run the appopriate client code (client.py).
-
 """
 
 from typing import List, Tuple, Union, Optional, Dict
@@ -36,19 +31,13 @@ from flwr.common import Parameters, Scalar, Metrics
 from flwr.server.client_proxy import ClientProxy
 from flwr.common.logger import log
 from flwr.common import (
-    EvaluateIns,
-    EvaluateRes,
     FitRes,
-    FitIns,
     Parameters,
     Scalar,
     ndarrays_to_parameters,
     parameters_to_ndarrays,
     NDArrays,
 )
-
-# Define the max latent space as global variable
-max_latent_space = 2
 
 # Config_client
 def fit_config(
@@ -62,7 +51,7 @@ def fit_config(
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
         "min_latent_space": 0,
-        "max_latent_space": max_latent_space,
+        "max_latent_space": cfg.max_latent_space,
     }
     return config
 
@@ -103,7 +92,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
     def __init__(self, model, dataset, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
-        self.dataset = dataset
+        self.dataset = dataset  # TODO where used?
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
@@ -161,36 +150,18 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         return aggregated_parameters_global, aggregated_metrics
 
-# Main
 def main() -> None:
-
     # Start time and create directories
     start_time = time.time()
     utils.create_folders()
-
-    # Pick the independent test set from each client
-    test_x, test_y = [], []
-    for client_id in range(cfg.n_clients):
-        data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
-        test_x.append(data['test_features'])
-        test_y.append(data['test_labels'])
-    test_x = np.concatenate(test_x, axis=0)
-    test_y = np.concatenate(test_y, axis=0)
-    # Split the data into test subsets (final evaluation & server validation)
-    # test_x_server, test_x, test_y_server, test_y = train_test_split(test_x, test_y, test_size=0.5, random_state=cfg.random_seed)
-
-    # Create the datasets and data loaders
-    test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
-
-    # model and history folder
-    device = utils.check_gpu(manual_seed=True, print_info=True)
-    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, input_size=cfg.input_size).to(device)
+    device = utils.check_gpu()
+    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, \
+                                          input_size=cfg.input_size).to(device)
 
     # Define strategy
     strategy = SaveModelStrategy(
         # self defined
-        model=model, # model to be trained
+        model=model,
         dataset=cfg.dataset_name,
         # super
         min_fit_clients=cfg.n_clients, # always all training
@@ -201,17 +172,12 @@ def main() -> None:
         on_evaluate_config_fn=fit_config,
     )
 
-    # TODO 4-dim save as: Model, Dataset, Strategy, Non-IIDType (or perhaps #clients)
-    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.n_clients} clients\033[0m\n")
-
     # Start Flower server and (finish all training and evaluation)
     history = fl.server.start_server(
         server_address="0.0.0.0:8098",   # 0.0.0.0 listens to all available interfaces
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
     )
-
-    # EVALUATION 
 
     # convert history to list
     loss = [k[1] for k in history.losses_distributed]
@@ -225,17 +191,28 @@ def main() -> None:
     # Single Plot
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
 
-    # Load the best model
-    model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
+    # Evaluate the model on the test set on server side
+    if cfg.server_side_test:
+        # Load the best model (by loss)
+        model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
 
-    # Evaluate the model on the test set
-    loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
+        # Generate server-side test dataset from clients test datasets
+        test_x, test_y = [], []
+        for client_id in range(cfg.n_clients):
+            data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
+            test_x.append(data['test_features'])
+            test_y.append(data['test_labels'])
+        test_x = np.concatenate(test_x, axis=0)
+        test_y = np.concatenate(test_y, axis=0)
+        test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
+        test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+
+        loss_test, accuracy_test = models.simple_test(model, device, test_loader)
+        print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
 
     # Print training time in minutes (grey color)
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     
-
 if __name__ == "__main__":
     main()

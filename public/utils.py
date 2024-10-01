@@ -18,23 +18,17 @@ def create_folders():
     os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
 
 # define device
-def check_gpu(manual_seed=True, print_info=True):
-    if manual_seed:
-        torch.manual_seed(0)
+def check_gpu():
+    torch.manual_seed(0)
     if torch.cuda.is_available():
-        if print_info:
-            print("CUDA is available")
         device = 'cuda'
         torch.cuda.manual_seed_all(0) 
     elif torch.backends.mps.is_available():
-        if print_info:
-            print("MPS is available")
         device = torch.device("mps")
         torch.mps.manual_seed(0)
     else:
-        if print_info:
-            print("CUDA is not available")
         device = 'cpu'
+    print(f"Using device: {device}")
     return device
 
 # plot and save plot on server side

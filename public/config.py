@@ -13,6 +13,10 @@ show_labels = False # show distribution of data if any
 args = {
 }
 
+# to clean up
+max_latent_space = 2 # to be identified
+server_side_test = False # to be identified
+
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64

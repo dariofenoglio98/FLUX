@@ -108,13 +108,15 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load device, model and data
-    device = utils.check_gpu(manual_seed=True)
-    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, input_size=cfg.input_size).to(device)
+    device = utils.check_gpu()
+    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, \
+                                          input_size=cfg.input_size).to(device)
     data = np.load(f'./data/client_{args.id}.npy', allow_pickle=True).item()
 
     # Split the data into training and testing subsets
     train_features, val_features, train_labels, val_labels = train_test_split(
-        data['train_features'], data['train_labels'], test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
+        data['train_features'], data['train_labels'], \
+        test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
     )
 
     num_examples = {
@@ -125,8 +127,6 @@ def main() -> None:
     # Create the datasets
     train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
     val_dataset = models.CombinedDataset(val_features, val_labels, transform=None)
-
-    # Create the data loaders
     train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
