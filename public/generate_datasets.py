@@ -66,14 +66,16 @@ if cfg.drifting_type in ['static', 'trND_teDR']:
 
 # complex format as training drifting
 else:
+    # give rounds to the name
     count = 1
     for dataset in anda_dataset:
         client_number = dataset['client_number']
         cluster = dataset['cluster']
-        order = dataset['epoch_locker_order']
+        epoch_locker_indicator = dataset['epoch_locker_indicator']
+        epoch_locker_order = dataset['epoch_locker_order']
 
         # change name to better conform        
-        filename = f'./data/cur_datasets/client_{client_number}_cluster_{cluster}_order_{order}.npy'
+        filename = f'./data/cur_datasets/client_{client_number}_cluster_{cluster}.npy'
         
         np.save(filename, dataset)
 
@@ -81,3 +83,4 @@ else:
         count += 1
 
 print("Datasets saved successfully!")
+

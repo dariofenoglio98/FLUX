@@ -480,9 +480,6 @@ def main() -> None:
     # Create directories 
     utils.create_folders()
 
-    # Create all data for clients
-    utils.generate_dataset()
-
     # Pick the indipendent test set from each client
     test_x, test_y = [], []
     for client_id in range(cfg.n_clients):

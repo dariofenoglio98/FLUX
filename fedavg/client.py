@@ -50,6 +50,9 @@ class FlowerClient(fl.client.NumPyClient):
         self.evaluate_fn = models.ModelEvaluator(test_loader=val_loader, device=device)
         self.device = device
 
+    def load_current_data():
+        pass
+
     def get_parameters(self, config):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
 
@@ -60,6 +63,8 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
+
+        # if condition is reached, load data
         
         # Extract descriptors
         descriptors = self.evaluate_fn.extract_descriptors(model=self.model, client_id=self.client_id, \
@@ -111,7 +116,13 @@ def main() -> None:
     device = utils.check_gpu()
     model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-    data = np.load(f'./data/client_{args.id}.npy', allow_pickle=True).item()
+    
+    # Load data
+    if cfg.drifting_type in ['static', 'trND_teDR']:
+        data = np.load(f'./data/cur_datasets/client_{args.id}.npy', allow_pickle=True).item()
+    else:
+        pass
+    # data = np.load(f'./data/client_{args.id}.npy', allow_pickle=True).item()
 
     # Split the data into training and testing subsets
     train_features, val_features, train_labels, val_labels = train_test_split(
