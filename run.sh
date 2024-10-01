@@ -15,8 +15,12 @@ echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
     Data non-IID type: $non_iid_type\033[0m\n\033[1;36m \
     Number of clients: $n_clients\033[0m\n"
 
-# Create datasets
+# Clean datasets
+cd data/cur_datasets && rm -rf * && cd ../..
+# Create new datasets
 python public/generate_datasets.py
+
+exit
 
 # Change to the directory of the strategy
 cd "$strategy"
@@ -35,10 +39,6 @@ done
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 # Wait for all background processes to complete
 wait
-
-# delete datasets
-cd ../data/cur_datasets
-rm -rf *
 
 # Clean up
 echo "Shutting down - processes completed correctly"

@@ -8,14 +8,10 @@ import public.config as cfg
 
 # Create folders
 def create_folders():
-    # Clean cache
-    os.system(f"rm -r results/{cfg.model_name}/{cfg.dataset_name}")
-
-    # Create directories for results
-    os.makedirs(f"results/{cfg.model_name}/{cfg.dataset_name}")
-    os.makedirs(f"histories/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
-    os.makedirs(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
-    os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}", exist_ok=True)
+    os.makedirs(f"results/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
+    os.makedirs(f"histories/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
+    os.makedirs(f"checkpoints/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
+    os.makedirs(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
 
 # define device
 def check_gpu():
@@ -52,7 +48,7 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
     plt.ylabel('Metrics')
     plt.title('Distributed Metrics (Weighted Average on Test-Set)')
     plt.legend()
-    plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/training_{rounds}_rounds.png")
+    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/training_{rounds}_rounds.png")
     if show:
         plt.show()
     return min_loss_index+1, max_accuracy_index+1
@@ -60,8 +56,8 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
 # Cluster plot
 def cluster_plot(X_reduced, cluster_labels, client_cid, server_round, name="KMeans"):
     # Create a folder to save the plots
-    if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
-        os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+    if not os.path.exists(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors"):
+        os.makedirs(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors")
     
     # number of clusters - only number of cluster_labels - no string element
     n_clusters = np.unique([n for n in cluster_labels if n.isnumeric()]).shape[0]
@@ -76,14 +72,14 @@ def cluster_plot(X_reduced, cluster_labels, client_cid, server_round, name="KMea
     for i, cid in enumerate(client_cid):
         plt.text(X_reduced[i, 0], X_reduced[i, 1], str(cid), fontsize=10, ha='right')
     # Save the plot
-    plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/{name.lower()}_cluster_visualization_{server_round}.png")
+    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors/{name.lower()}_cluster_visualization_{server_round}.png")
     plt.close()
     
 # Plot the elbow and silhouette scores
 def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, server_round):
     # Create a folder to save the plots
-    if not os.path.exists(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors"):
-        os.makedirs(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors")
+    if not os.path.exists(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors"):
+        os.makedirs(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors")
         
     # Create figure and subplots
     fig, axs = plt.subplots(1, 2, figsize=(20, 5))  # Two plots side by side, width is larger (20) to accommodate both plots
@@ -101,5 +97,5 @@ def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, serv
     axs[1].set_ylabel('Silhouette Score', fontsize=16)
 
     # Save the combined figure to the appropriate directory
-    plt.savefig(f"images/{cfg.model_name}/{cfg.dataset_name}/plots_descriptors/elbow_and_silhouette_{server_round}.png")
+    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors/elbow_and_silhouette_{server_round}.png")
     plt.close()

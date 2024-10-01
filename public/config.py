@@ -4,13 +4,14 @@ strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
-drifting_type = 'static' # refer to ANDA page for more details
-non_iid_type = 'feature_skew' # refer to ANDA page for more details
+drifting_type = 'trDA_teND' # refer to ANDA page for more details
+non_iid_type = 'Px' # refer to ANDA page for more details
 n_clients = 2
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
+    'DA_epoch_locker_num': 3
 }
 
 # to clean up
@@ -22,11 +23,10 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2
-n_rounds = 2
+n_rounds = 100
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
-seed = random_seed
 transform = None
 
 n_classes_dict = {
@@ -52,4 +52,4 @@ acceptable_accuracy = {
     "FMNIST": 0.8
 }
 th_accuracy = acceptable_accuracy[dataset_name]
-
+training_drifting = False if drifting_type in ['static', 'trND_teDR'] else True # to be identified

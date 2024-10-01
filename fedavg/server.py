@@ -89,10 +89,9 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model, dataset, *args, **kwargs):
+    def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model = model
-        self.dataset = dataset  # TODO where used?
+        self.model = model  # used for saving checkpoints
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
@@ -162,7 +161,6 @@ def main() -> None:
     strategy = SaveModelStrategy(
         # self defined
         model=model,
-        dataset=cfg.dataset_name,
         # super
         min_fit_clients=cfg.n_clients, # always all training
         min_evaluate_clients=cfg.n_clients, # always all evaluating
