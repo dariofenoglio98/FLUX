@@ -18,8 +18,10 @@ def create_folders():
 # define device
 def check_gpu():
     torch.manual_seed(cfg.random_seed)
-    if torch.cuda.is_available():
-        device = 'cuda:' + int(cfg.gpu)
+    if cfg.gpu == -1:
+        device = 'cpu'
+    elif torch.cuda.is_available():
+        device = 'cuda:' + str(cfg.gpu)
         torch.cuda.manual_seed_all(cfg.random_seed) 
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
