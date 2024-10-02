@@ -93,9 +93,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         super().__init__(*args, **kwargs)
         self.model = model  # used for saving checkpoints
         self.path = path # saving model path
-        self.client_cid_list = []
-        self.aggregated_cluster_parameters = []
-        self.cluster_labels = {}
 
     # Override aggregate_fit method to add saving functionality
     def aggregate_fit(
@@ -150,7 +147,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         return aggregated_parameters_global, aggregated_metrics
 
 def main() -> None:
-    # Start time and create directories
+
     utils.set_seed(cfg.random_seed)
     start_time = time.time()
     exp_path = utils.create_folders()

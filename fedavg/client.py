@@ -86,7 +86,6 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
-
         cur_train_loader = self.load_current_data(cur_round, train=True)
 
         # Train the model   
@@ -104,7 +103,6 @@ class FlowerClient(fl.client.NumPyClient):
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
-
         cur_val_loader = self.load_current_data(cur_round, train=False)
 
         loss_trad, accuracy_trad, f1_score_trad, _ = \

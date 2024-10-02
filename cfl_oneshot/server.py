@@ -56,7 +56,6 @@ from flwr.common import (
 # Define the max latent space as global variable
 max_latent_space = 2
 
-
 # Config_client
 def fit_config(server_round: int):
     """Return training configuration dict for each round."""
@@ -101,42 +100,13 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     ]
     return weights_prime
 
-def aggregate_fit(
-    self,
-    server_round: int,
-    results: List[Tuple[ClientProxy, FitRes]],
-    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
-) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-    """Aggregate fit results using weighted average."""
-    if not results:
-        return None, {}
-    # Do not aggregate if there are failures and failures are not accepted
-    if not self.accept_failures and failures:
-        return None, {}
-
-    # Convert results
-    weights_results = [
-        (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
-        for _, fit_res in results
-    ]
-    parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
-
-    # Aggregate custom metrics if aggregation fn was provided
-    metrics_aggregated = {}
-    if self.fit_metrics_aggregation_fn:
-        fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
-        metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
-    elif server_round == 1:  # Only log this warning once
-        log(WARNING, "No fit_metrics_aggregation_fn provided")
-
-    return parameters_aggregated, metrics_aggregated
-
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model, dataset, *args, **kwargs):
+    def __init__(self, model, path, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model = model
-        self.dataset = dataset
+        self.model = model # used for saving checkpoints
+        self.path = path # saving model path
+
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
@@ -178,6 +148,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # 1. Normalize each column between 0 and 1 #TODO: test both 1 and 2 methods
         scaler = MinMaxScaler() # StandardScaler()
         client_descr_scaled_1 = scaler.fit_transform(client_descr)
+
         # print(f"scaled_data: {client_descr_scaled_1}")
         # 2. Normalize by group of descriptors #TODO: test both 1 and 2 methods
         loss_pc = client_descr[:, :cfg.n_classes]
@@ -253,9 +224,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
 
             # TODO: save centroids (watch dynamic code because i already have the centroid funciton)
-
-
-        
         
         ################################################################################
         # Federated averaging aggregation
@@ -332,7 +300,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         return aggregated_parameters_global, aggregated_metrics
     
-    
     ############################################################################################################
     # Aggregate evaluation results
     ############################################################################################################
@@ -383,11 +350,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Update the max_latent_space for the next round
         max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        global max_latent_space 
+        global max_latent_space # TODO ?
         max_latent_space = 1.02 * max_client_latent_space 
 
         return loss_aggregated, metrics_aggregated
-    
 
     ############################################################################################################
     # Configure fit - Send custom configuration to clients for training
@@ -423,7 +389,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 fit_ins.append(FitIns(self.aggregated_cluster_parameters[self.cluster_labels[c]], config))
             return [(client, fit_ins[i]) for i, client in enumerate(clients)]
         
-      
     
     ############################################################################################################
     # Configure evaluate - Send custom configuration to clients for evaluation
@@ -465,57 +430,28 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
 # Main
 def main() -> None:
-    # parser = argparse.ArgumentParser(description="Flower")
-    # parser.add_argument(
-    #     "--rounds",
-    #     type=int,
-    #     default=20,
-    #     help="Specifies the number of FL rounds",
-    # )
-    # args = parser.parse_args()
 
-    # Start time
+    utils.set_seed(cfg.random_seed)
     start_time = time.time()
-
-    # Create directories 
-    utils.create_folders()
-
-    # Pick the indipendent test set from each client
-    test_x, test_y = [], []
-    for client_id in range(cfg.n_clients):
-        data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
-        test_x.append(data['test_features'])
-        test_y.append(data['test_labels'])
-    test_x = np.concatenate(test_x, axis=0)  # TODO: do not concatenate them because we need to split them for each client - keep a list of test datasets from each client
-    test_y = np.concatenate(test_y, axis=0)
-    # Split the data into test subsets (final evaluation & server validation)
-    test_x_server, test_x, test_y_server, test_y = train_test_split(test_x, test_y, test_size=0.5, random_state=42)
-
-    # Create the datasets
-    test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
-
-    # Create the data loaders
-    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
-
-    # model and history folder
-    device = utils.check_gpu(manual_seed=True, print_info=True)
-    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, input_size=cfg.input_size).to(device)
+    exp_path = utils.create_folders()
+    device = utils.check_gpu()
+    in_channels = utils.get_in_channels()
+    model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
+                                          input_size=cfg.input_size).to(device)
 
     # Define strategy
     strategy = SaveModelStrategy(
-        model=model, # model to be trained
-        min_fit_clients=cfg.n_clients, #+cfg.n_attackers, # Never sample less than 10 clients for training
-        min_evaluate_clients=cfg.n_clients, #+cfg.n_attackers,  # Never sample less than 5 clients for evaluation
-        min_available_clients=cfg.n_clients, #+cfg.n_attackers, # Wait until all 10 clients are available
-        fraction_fit=1.0, # Sample 100 % of available clients for training
-        fraction_evaluate=1.0, # Sample 100 % of available clients for evaluation
+        # self defined
+        model=model,
+        path=exp_path,
+        # super
+        min_fit_clients=cfg.n_clients, # always all training
+        min_evaluate_clients=cfg.n_clients, # always all evaluating
+        min_available_clients=cfg.n_clients, # always all available
         evaluate_metrics_aggregation_fn=weighted_average,
-        on_evaluate_config_fn=fit_config,
         on_fit_config_fn=fit_config,
-        dataset=cfg.dataset_name,
+        on_evaluate_config_fn=fit_config,
     )
-
-    print(f"\n\033[94mTraining {cfg.model_name} on {cfg.dataset_name} with {cfg.n_clients} clients\033[0m\n")
 
     # Start Flower server for three rounds of federated learning
     history = fl.server.start_server(
@@ -523,22 +459,21 @@ def main() -> None:
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
     )
-    # convert history to list
+
+    # Convert history to list
     loss = [k[1] for k in history.losses_distributed]
     accuracy = [k[1] for k in history.metrics_distributed['accuracy']]
 
     # Save loss and accuracy to a file
     print(f"Saving metrics to as .json in histories folder...")
-    with open(f'histories/{cfg.model_name}/{cfg.dataset_name}/distributed_metrics.json', 'w') as f:
+    with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
-    # Single Plot
+    # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
+    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))
 
-    # Load the best model
-    model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
-
-    # Evaluate the model on the test set
+    # The following evaluation is incorrect
     # TODO: load the saved evaluation global model - give to each new client the right cluster model
     # 1. Load the evaluation model
     # 2. Extract the descriptors () from each test client datasset
@@ -546,11 +481,25 @@ def main() -> None:
     # 4. Evaluate the respective (closest) cluster model on that client dataset 
     # 5. Aggregate the metrics and keep client metrics for further analysis
 
+    # Generate server-side test dataset from clients test datasets
+    test_x, test_y = [], []
+    for client_id in range(cfg.n_clients):
+        if not cfg.training_drifting:
+            cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
+            test_x.append(cur_data['test_features']) if in_channels == 3 else test_x.append(cur_data['test_features'].unsqueeze(1))
+            test_y.append(cur_data['test_labels'])
+        else:
+            cur_data = np.load(f'../data/cur_datasets/client_{client_id}_round_-1.npy', allow_pickle=True).item()
+            test_x.append(cur_data['features']) if in_channels == 3 else test_x.append(cur_data['features'].unsqueeze(1))
+            test_y.append(cur_data['labels'])
+    test_dataset = models.CombinedDataset(np.concatenate(test_x, axis=0), \
+                                          np.concatenate(test_y, axis=0), \
+                                          transform=None)
+    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+
     loss_test, accuracy_test = models.simple_test(model, device, test_loader)
     print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
-    print(f"\033[93mNOTE: global model is evaluated, not correct!\033[0m\n")
 
-    # Print training time in minutes (grey color)
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     
