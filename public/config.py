@@ -1,6 +1,7 @@
 # Overall settings
 strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
 random_seed = 42
+gpu = 0
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
@@ -39,7 +40,6 @@ local_epochs = 2
 lr = 0.01
 momentum = 0.9
 transform = None
-
 
 
 # self-defined settings
