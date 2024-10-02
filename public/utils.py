@@ -52,7 +52,7 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
     plt.ylabel('Metrics')
     plt.title('Distributed Metrics (Weighted Average on Test-Set)')
     plt.legend()
-    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/training_{rounds}_rounds.png")
+    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png")
     if show:
         plt.show()
     return min_loss_index+1, max_accuracy_index+1

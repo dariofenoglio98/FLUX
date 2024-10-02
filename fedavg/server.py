@@ -145,7 +145,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             self.model.load_state_dict(state_dict, strict=True)
             # Save the model
-            torch.save(self.model.state_dict(), f"checkpoints/{self.path}/model_{server_round}.pth")
+            torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{server_round}.pth")
         
         return aggregated_parameters_global, aggregated_metrics
 
@@ -191,7 +191,7 @@ def main() -> None:
 
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
-    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/model_{best_loss_round}.pth", weights_only=False))
+    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))
 
     # Generate server-side test dataset from clients test datasets
     test_x, test_y = [], []

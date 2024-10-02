@@ -7,7 +7,7 @@ gpu = 1 # set the GPU to use, if -1 use CPU
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'trDA_teDR' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'Px' # refer to ANDA page for more details
-n_clients = 10
+n_clients = 5
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
@@ -18,13 +18,13 @@ args = {
     # 'rotations':4,
     # 'scaling_color_low':0.8,
     # 'scaling_color_high':1.0
-    'DA_epoch_locker_num': 3,
-    'DA_random_locker':True,
-    'DA_continual_divergence':False,
-    'DA_epoch_locker_num':10,
-    'DA_max_dist':10,
-    'rotation_bank':4,
-    'color_bank':3,
+    # 'DA_epoch_locker_num': 3,
+    # 'DA_random_locker':True,
+    # 'DA_continual_divergence':False,
+    # 'DA_epoch_locker_num':10,
+    # 'DA_max_dist':10,
+    # 'rotation_bank':4,
+    # 'color_bank':3,
 }
 
 # to clean up
@@ -35,7 +35,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2
-n_rounds = 5
+n_rounds = 3
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
