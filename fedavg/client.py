@@ -33,71 +33,92 @@ import public.models as models
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self,
         model,
-        train_loader, 
-        val_loader, # input of ModelEvaluator
-        optimizer, 
-        num_examples, 
-        client_id, 
-        train_fn, 
+        client_id,
         device
         ):
         self.model = model
-        self.train_loader = train_loader
-        self.optimizer = optimizer
-        self.num_examples = num_examples
         self.client_id = client_id
-        self.train_fn = train_fn
-        self.evaluate_fn = models.ModelEvaluator(test_loader=val_loader, device=device)
         self.device = device
+        self.train_fn = models.simple_train
+        self.drifting_log = []
+        
+        if cfg.training_drifting:
+            drifting_log = np.load(f'../data/cur_datasets/drifting_log.npy', allow_pickle=True).item()
+            self.drifting_log = drifting_log[self.client_id-1]
 
-    def load_current_data():
-        pass
+    def load_current_data(self,
+                          cur_round,
+                          train=True) -> DataLoader:
+        # load raw data
+        if not cfg.training_drifting:
+            cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}.npy', allow_pickle=True).item()
+        else:
+            load_index = max([index for index in self.drifting_log if index <= cur_round], default=0)
+            cur_data = np.load(f'../data/cur_datasets/client_{self.client_id-1}_round_{load_index}.npy', allow_pickle=True).item()
 
+        cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
+        cur_features = cur_features.unsqueeze(1) if utils.get_in_channels() == 1 else cur_features
+
+        cur_labels = cur_data['train_labels'] if not cfg.training_drifting else cur_data['labels']
+
+        # Split the data into training and testing subsets
+        train_features, val_features, train_labels, val_labels = train_test_split(
+            cur_features, cur_labels, test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
+        )
+
+        if train:
+            train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
+            return DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
+        else:
+            val_dataset = models.CombinedDataset(val_features, val_labels, transform=None)
+            return DataLoader(val_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+
+    # override
     def get_parameters(self, config):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
 
+    # override
     def set_parameters(self, parameters):
         params_dict = zip(self.model.state_dict().keys(), parameters)
         state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
         self.model.load_state_dict(state_dict, strict=True)
 
+    # override
     def fit(self, parameters, config):
         self.set_parameters(parameters)
+        cur_round = config["current_round"]
 
-        # if condition is reached, load data
-        
-        # Extract descriptors
-        descriptors = self.evaluate_fn.extract_descriptors(model=self.model, client_id=self.client_id, \
-                                                        max_latent_space=config["max_latent_space"])
+        cur_train_loader = self.load_current_data(cur_round, train=True)
 
         # Train the model   
         for epoch in range(config["local_epochs"]):
-            self.train_fn(self.model, self.device, self.train_loader, self.optimizer, epoch, self.client_id)
+            self.train_fn(model=self.model,
+                          device=self.device,
+                          train_loader=cur_train_loader, 
+                          optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
+                          epoch=epoch,
+                          client_id=self.client_id)
 
-
-        return self.get_parameters(config), self.num_examples["train"], descriptors, #{}
+        return self.get_parameters(config), len(cur_train_loader.dataset), {}
     
+    # override
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        try:
-            # loss, accuracy, precision_pc, recall_pc, f1_pc, accuracy_pc, loss_pc = self.evaluate_fn(self.model, self.device, self.val_loader)
-            loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = self.evaluate_fn.evaluate(self.model)
+        cur_round = config["current_round"]
 
-            return float(loss_trad), self.num_examples["val"], {
-                "accuracy": float(accuracy_trad),
-                "f1_score": float(f1_score_trad),
-                "max_latent_space": float(new_max_latent_space),
-                "cid": int(self.client_id)
-            }
-            
-        except Exception as e:
-            print(f"An error occurred during inference of client {self.client_id}: {e}, returning same zero metrics") 
-            return float(10000), self.num_examples["val"], {
-                "accuracy": float(0),
-                "f1_score": float(0),
-                "max_latent_space": float(config["max_latent_space"]),
-                "cid": int(self.client_id)
-            }
+        cur_val_loader = self.load_current_data(cur_round, train=False)
+
+        loss_trad, accuracy_trad, f1_score_trad, _ = \
+            models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
+
+        # quick check results
+        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}") \
+            if self.client_id == 1 else None
+
+        return float(loss_trad), len(cur_val_loader.dataset), {
+            "accuracy": float(accuracy_trad),
+            "f1_score": float(f1_score_trad)
+        }
 
 # main
 def main() -> None:
@@ -113,40 +134,17 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load device, model and data
+    utils.set_seed(cfg.random_seed)
     device = utils.check_gpu()
-    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, \
+    in_channels = utils.get_in_channels()
+    model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-    
-    # Load data
-    if cfg.drifting_type in ['static', 'trND_teDR']:
-        data = np.load(f'./data/cur_datasets/client_{args.id}.npy', allow_pickle=True).item()
-    else:
-        pass
-    # data = np.load(f'./data/client_{args.id}.npy', allow_pickle=True).item()
-
-    # Split the data into training and testing subsets
-    train_features, val_features, train_labels, val_labels = train_test_split(
-        data['train_features'], data['train_labels'], \
-        test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
-    )
-
-    num_examples = {
-        "train": train_features.shape[0],
-        "val": val_features.shape[0]
-    }
-
-    # Create the datasets
-    train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
-    val_dataset = models.CombinedDataset(val_features, val_labels, transform=None)
-    train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.test_batch_size, shuffle=False)
-
-    # Optimizer and Loss function
-    optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=cfg.momentum)
 
     # Start Flower client
-    client = FlowerClient(model, train_loader, val_loader, optimizer, num_examples, args.id, 
-                           models.simple_train, device).to_client()
+    client = FlowerClient(model=model,
+                          client_id=args.id,
+                          device=device
+                          ).to_client()
     
     fl.client.start_client(server_address="[::]:8098", client=client) # local host
 

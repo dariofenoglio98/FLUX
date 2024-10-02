@@ -1,34 +1,48 @@
 # Overall settings
-random_seed = 42
 strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
+random_seed = 42
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
-drifting_type = 'trDA_teND' # refer to ANDA page for more details
+drifting_type = 'trDA_teDR' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'Px' # refer to ANDA page for more details
-n_clients = 2
+n_clients = 10
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
-    'DA_epoch_locker_num': 3
+    # 'set_color':True,
+    # 'colors':3,
+    # 'set_rotation':True,
+    # 'rotations':4,
+    # 'scaling_color_low':0.8,
+    # 'scaling_color_high':1.0
+    'DA_epoch_locker_num': 3,
+    'DA_random_locker':True,
+    'DA_continual_divergence':False,
+    'DA_epoch_locker_num':10,
+    'DA_max_dist':10,
+    'rotation_bank':4,
+    'color_bank':3,
 }
 
 # to clean up
-max_latent_space = 2 # to be identified
-server_side_test = False # to be identified
+max_latent_space = 2 # TODO Dario, place it in good place
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2
-n_rounds = 100
+n_rounds = 5
 local_epochs = 2
 lr = 0.01
 momentum = 0.9
 transform = None
 
+
+
+# self-defined settings
 n_classes_dict = {
     "CIFAR10": 10,
     "CIFAR100": 100,

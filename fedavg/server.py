@@ -89,9 +89,10 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model, *args, **kwargs):
+    def __init__(self, model, path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model  # used for saving checkpoints
+        self.path = path # saving model path
         self.client_cid_list = []
         self.aggregated_cluster_parameters = []
         self.cluster_labels = {}
@@ -129,7 +130,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No fit_metrics_aggregation_fn provided")
             
-            
         ################################################################################
         # Save model
         ################################################################################
@@ -145,22 +145,25 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             self.model.load_state_dict(state_dict, strict=True)
             # Save the model
-            torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{server_round}.pth")
+            torch.save(self.model.state_dict(), f"checkpoints/{self.path}/model_{server_round}.pth")
         
         return aggregated_parameters_global, aggregated_metrics
 
 def main() -> None:
     # Start time and create directories
+    utils.set_seed(cfg.random_seed)
     start_time = time.time()
-    utils.create_folders()
+    exp_path = utils.create_folders()
     device = utils.check_gpu()
-    model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, \
+    in_channels = utils.get_in_channels()
+    model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
 
     # Define strategy
     strategy = SaveModelStrategy(
         # self defined
         model=model,
+        path=exp_path,
         # super
         min_fit_clients=cfg.n_clients, # always all training
         min_evaluate_clients=cfg.n_clients, # always all evaluating
@@ -177,38 +180,39 @@ def main() -> None:
         strategy=strategy,
     )
 
-    # convert history to list
+    # Convert history to list
     loss = [k[1] for k in history.losses_distributed]
     accuracy = [k[1] for k in history.metrics_distributed['accuracy']]
 
     # Save loss and accuracy to a file
     print(f"Saving metrics to as .json in histories folder...")
-    with open(f'histories/{cfg.model_name}/{cfg.dataset_name}/distributed_metrics.json', 'w') as f:
+    with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
-    # Single Plot
+    # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
+    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/model_{best_loss_round}.pth", weights_only=False))
 
-    # Evaluate the model on the test set on server side
-    if cfg.server_side_test:
-        # Load the best model (by loss)
-        model.load_state_dict(torch.load(f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_{best_loss_round}.pth", weights_only=False))
+    # Generate server-side test dataset from clients test datasets
+    test_x, test_y = [], []
+    for client_id in range(cfg.n_clients):
+        if not cfg.training_drifting:
+            cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
+            test_x.append(cur_data['test_features']) if in_channels == 3 else test_x.append(cur_data['test_features'].unsqueeze(1))
+            test_y.append(cur_data['test_labels'])
+        else:
+            cur_data = np.load(f'../data/cur_datasets/client_{client_id}_round_-1.npy', allow_pickle=True).item()
+            test_x.append(cur_data['features']) if in_channels == 3 else test_x.append(cur_data['features'].unsqueeze(1))
+            test_y.append(cur_data['labels'])
+    test_dataset = models.CombinedDataset(np.concatenate(test_x, axis=0), \
+                                          np.concatenate(test_y, axis=0), \
+                                          transform=None)
+    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
-        # Generate server-side test dataset from clients test datasets
-        test_x, test_y = [], []
-        for client_id in range(cfg.n_clients):
-            data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
-            test_x.append(data['test_features'])
-            test_y.append(data['test_labels'])
-        test_x = np.concatenate(test_x, axis=0)
-        test_y = np.concatenate(test_y, axis=0)
-        test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
-        test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+    loss_test, accuracy_test = models.simple_test(model, device, test_loader)
+    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
 
-        loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-        print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
 
-    # Print training time in minutes (grey color)
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     

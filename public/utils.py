@@ -13,15 +13,17 @@ def create_folders():
     os.makedirs(f"checkpoints/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
     os.makedirs(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}", exist_ok=True)
 
+    return f"{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}"
+
 # define device
 def check_gpu():
-    torch.manual_seed(0)
+    torch.manual_seed(cfg.random_seed)
     if torch.cuda.is_available():
         device = 'cuda'
-        torch.cuda.manual_seed_all(0) 
+        torch.cuda.manual_seed_all(cfg.random_seed) 
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
-        torch.mps.manual_seed(0)
+        torch.mps.manual_seed(cfg.random_seed)
     else:
         device = 'cpu'
     print(f"Using device: {device}")
@@ -99,3 +101,31 @@ def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, serv
     # Save the combined figure to the appropriate directory
     plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors/elbow_and_silhouette_{server_round}.png")
     plt.close()
+
+# Get cur dataset in_channels
+def get_in_channels():
+    for file_name in ['../data/cur_datasets/client_1.npy', '../data/cur_datasets/client_1_round_-1.npy']:
+        if os.path.exists(file_name):
+            cur_data = np.load(file_name, allow_pickle=True).item()
+            break
+    cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
+
+    return 3 if len(cur_features.size()) == 4 else 1
+
+def set_seed(seed):
+    # Set seed for torch
+    torch.manual_seed(seed)
+    
+    # If using CUDA
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # For multi-GPU
+    if torch.backends.mps.is_available():
+        torch.mps.manual_seed(cfg.random_seed)
+    # Set seed for NumPy
+    np.random.seed(seed)
+    # Set deterministic behavior for CUDNN
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # Set PYTHONHASHSEED
+    os.environ['PYTHONHASHSEED'] = str(seed)

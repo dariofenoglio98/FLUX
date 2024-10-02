@@ -23,7 +23,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 #############################################################################################################
 # LeNet-5 model
 class LeNet5(nn.Module):
-    def __init__(self, in_channels=1, num_classes=10, input_size=(28, 28)):
+    def __init__(self, in_channels=3, num_classes=10, input_size=(28, 28)):
         super(LeNet5, self).__init__()
         self.num_classes = num_classes
 
@@ -299,16 +299,12 @@ class ModelEvaluator:
     def evaluate(self, model):
         """
         Evaluates the model on the provided test data and returns various metrics.
-
-        Args:
-            model: Model to evaluate
         """
         
         # client-enhanced evaluation function
         # def evaluate_model_per_class(model, device, test_loader, latent=False):
         # Set model to evaluation mode
         model.eval()
-        num_classes = model.num_classes
 
         y_true_all = []
         y_pred_all = []

@@ -83,7 +83,7 @@ else:
 
     # print(", ".join(f"{key}: {value}" for key, value in drifting_log.items()))
     # save log file
-    np.save(f'./data/cur_datasets/drifting_log.npy', dataset)
+    np.save(f'./data/cur_datasets/drifting_log.npy', drifting_log)
 
 print("Datasets saved successfully!")
 

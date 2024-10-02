@@ -6,6 +6,7 @@ strategy=$(python -c "from public.config import strategy; print(strategy)")
 drifting_type=$(python -c "from public.config import drifting_type; print(drifting_type)")
 non_iid_type=$(python -c "from public.config import non_iid_type; print(non_iid_type)")
 n_clients=$(python -c "from public.config import n_clients; print(n_clients)")
+n_rounds=$(python -c "from public.config import n_rounds; print(n_rounds)")
 
 echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
     MODEL: $model_name\033[0m\n\033[1;36m \
@@ -13,14 +14,14 @@ echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
     Strategy: $strategy\033[0m\n\033[1;36m \
     Drifting type: $drifting_type\033[0m\n\033[1;36m \
     Data non-IID type: $non_iid_type\033[0m\n\033[1;36m \
-    Number of clients: $n_clients\033[0m\n"
+    Number of clients: $n_clients\033[0m\n\033[1;36m \
+    Number of rounds: $n_rounds\033[0m\n"
 
 # Clean datasets
-cd data/cur_datasets && rm -rf * && cd ../..
+rm -rf data/cur_datasets/*
+
 # Create new datasets
 python public/generate_datasets.py
-
-exit
 
 # Change to the directory of the strategy
 cd "$strategy"
