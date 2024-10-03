@@ -59,13 +59,13 @@ from flwr.common import (
 
 VERBOSE = True
 # Define the max latent space as global variable
-max_latent_space = 2
+MAX_LATENT_SPACE = 2
 CLIENT_SCALING_METHOD = 1
 CLIENT_CLUSTER_METHOD = 1
 
 # TODO DARIO
 # 1. Save the cluster centroids (i already have the function in the dynamic
-# 2. Add std accuracyper class - descriptors
+# 2. Add std accuracy per class - descriptors
 
 # client_descr_scaled
 def client_descr_scaling(
@@ -97,7 +97,7 @@ def fit_config(server_round: int):
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
         "min_latent_space": 0,
-        "max_latent_space": max_latent_space,
+        "max_latent_space": MAX_LATENT_SPACE,
     }
     return config
 
@@ -398,22 +398,11 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if metrics_aggregated["accuracy"] > cfg.th_accuracy and self.cluster_status == 0:
             self.cluster_status = 1
             print(f"\033[93mRound {server_round} - Will be clustering next round\033[0m")
-            
-            # # Saving evaluation model
-            # print(f"Saving round {server_round} aggregated_parameters...")
-            # # Convert `Parameters` to `List[np.ndarray]`
-            # aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(self.aggregated_parameters_global)
-            # # Convert `List[np.ndarray]` to PyTorch`state_dict`
-            # params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
-            # state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-            # self.model.load_state_dict(state_dict, strict=True)
-            # # Save the model
-            # torch.save(self.model.state_dict(), f"checkpoints/{cfg.model_name}/{cfg.dataset_name}/model_evaluation_clusters.pth")
         
         # Update the max_latent_space for the next round
         max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        global max_latent_space # TODO ?
-        max_latent_space = 1.02 * max_client_latent_space 
+        global MAX_LATENT_SPACE 
+        MAX_LATENT_SPACE = 1.02 * max_client_latent_space 
 
         return loss_aggregated, metrics_aggregated
 
@@ -460,7 +449,7 @@ def main() -> None:
 
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
-    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))
+    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
 
     # The following evaluation is incorrect
     # TODO: load the saved evaluation global model - give to each new client the right cluster model

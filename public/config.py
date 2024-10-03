@@ -27,9 +27,6 @@ args = {
     # 'color_bank':3,
 }
 
-# to clean up
-max_latent_space = 2 # TODO for oneshot
-
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
