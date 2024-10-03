@@ -129,6 +129,20 @@ def simple_train(model, device, train_loader, optimizer, epoch, client_id=None):
         loss_list.append(loss.item())
     # print(f'Client: {client_id} - Train Epoch: {epoch} \tLoss: {sum(loss_list)/len(loss_list):.6f}')
 
+# FedProx train function
+def fedprox_train(model, device, train_loader, optimizer, proximal_mu, epoch, client_id=None):
+    model.train()
+    loss_list = []
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = F.cross_entropy(output, target)
+        loss.backward()
+        optimizer.step()
+        loss_list.append(loss.item())
+
+
 # simple test function
 def simple_test(model, device, test_loader):
     model.eval()
