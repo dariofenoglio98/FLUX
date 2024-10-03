@@ -51,7 +51,6 @@ def fit_config(
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
         "min_latent_space": 0,
-        "max_latent_space": cfg.max_latent_space,
     }
     return config
 
@@ -63,12 +62,6 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     examples = [num_examples for num_examples, _ in metrics]
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
-
-def weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
-    """Aggregate evaluation results obtained from multiple clients."""
-    num_total_evaluation_examples = sum([num_examples for num_examples, _ in results])
-    weighted_losses = [num_examples * loss for num_examples, loss in results]
-    return sum(weighted_losses) / num_total_evaluation_examples
 
 def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     """Compute weighted average."""

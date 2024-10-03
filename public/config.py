@@ -1,15 +1,15 @@
 # Overall settings
-strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
+strategy = 'cfl_oneshot' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
-drifting_type = 'trDA_teDR' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'Px' # refer to ANDA page for more details
-n_clients = 5
-show_features = False # show generated feature details if any
-show_labels = False # show distribution of data if any
+drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
+non_iid_type = 'feature_skew' # refer to ANDA page for more details
+n_clients = 2
+show_features = True # show generated feature details if any
+show_labels = True # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
     # 'set_color':True,
@@ -28,14 +28,14 @@ args = {
 }
 
 # to clean up
-max_latent_space = 2 # TODO Dario, place it in good place
+max_latent_space = 2 # TODO for oneshot
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 1024
 client_eval_ratio = 0.2
-n_rounds = 3
+n_rounds = 2
 local_epochs = 2
 lr = 0.01
 momentum = 0.9

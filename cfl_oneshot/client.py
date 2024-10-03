@@ -85,6 +85,7 @@ class FlowerClient(fl.client.NumPyClient):
     # override
     def fit(self, parameters, config):
         self.set_parameters(parameters)
+        # print(f"Parameters set for client {self.client_id} - {self.model[0][0]}")
         cur_round = config["current_round"]
         cur_train_loader = self.load_current_data(cur_round, train=True)
         
