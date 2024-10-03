@@ -1,5 +1,5 @@
 # Overall settings
-strategy = 'cfl_oneshot' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
+strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
 
