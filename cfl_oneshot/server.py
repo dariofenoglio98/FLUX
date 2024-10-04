@@ -61,7 +61,8 @@ from flwr.common import (
 MAX_LATENT_SPACE = 2
 
 # TODO DARIO
-# 2. Add std accuracy per class - descriptors
+# WHAT IF: we introduced latent space descriptors per class, i.e., selecting only one class, calculating the mean latent
+# space on it, reducing dim, and then same for others. Creating something like [metrics, latent_class1, latent_class2..]
     
 # client_descr_scaled
 class client_descr_scaling:
