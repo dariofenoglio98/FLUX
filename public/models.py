@@ -7,9 +7,12 @@ Training functions to test the models
 
 """
 
+VERBOSE = True
+
 import numpy as np  
 from math import prod
 import json
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -132,12 +135,22 @@ def simple_train(model, device, train_loader, optimizer, epoch, client_id=None):
 # FedProx train function
 def fedprox_train(model, device, train_loader, optimizer, proximal_mu, epoch, client_id=None):
     model.train()
+    cur_global_params = list(copy.deepcopy(model).parameters())  
+
     loss_list = []
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.cross_entropy(output, target)
+        # from FLWR
+        proximal_term = 0.0
+        for local_weights, global_weights in zip(model.parameters(), cur_global_params):
+            proximal_term += (local_weights - global_weights).norm(2)
+        cross_entropy_loss = F.cross_entropy(output, target)
+        proximal_term_value = (proximal_mu / 2) * proximal_term
+        loss = cross_entropy_loss + proximal_term_value
+        # ratio =  proximal_term_value.item() / cross_entropy_loss.item()
+        # print(f"Ratio = {ratio:.6f}")
         loss.backward()
         optimizer.step()
         loss_list.append(loss.item())

@@ -60,6 +60,11 @@ elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR
 else:
     raise ValueError("Drifting type not found! Please check the ANDA page for more details.")
 
+# quick check the dataset
+# for dataset in anda_dataset:
+#     print(f"train shape: {dataset['train_features'].shape}, {dataset['train_labels'].shape}")
+#     print(f"test shape: {dataset['test_features'].shape}, {dataset['test_labels'].shape}")
+
 # Save anda_dataset
 # simple format as training not drifting
 if not cfg.training_drifting:
