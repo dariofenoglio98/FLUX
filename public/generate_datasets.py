@@ -15,6 +15,9 @@ from ANDA import anda
 assert cfg.dataset_name in ['CIFAR10', 'CIFAR100', 'MNIST', 'FMNIST', 'EMNIST'], \
         "Dataset not found! Please check the ANDA page for more details."
 
+# Create folder if not exist
+os.makedirs('./data/cur_datasets', exist_ok=True)
+
 anda_dataset = []
 
 # special static mode using unique fn
