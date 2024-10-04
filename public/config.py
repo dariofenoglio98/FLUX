@@ -12,14 +12,14 @@ fedprox_proximal_mu = 0.1
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'label_skew' # refer to ANDA page for more details
-n_clients = 10
+non_iid_type = 'feature_skew' # refer to ANDA page for more details
+n_clients = 5
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
-    'scaling_label_low': 0.7,
-    'scaling_label_high': 1
+    # 'scaling_label_low': 0.7,
+    # 'scaling_label_high': 1
     # 'set_color':True,
     # 'colors':3,
     # 'set_rotation':True,

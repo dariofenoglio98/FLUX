@@ -183,26 +183,30 @@ def main() -> None:
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
     model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))
 
-    # Generate server-side test dataset from clients test datasets
-    test_x, test_y = [], []
+    # Evaluate the model on the client datasets    
+    losses, accuracies = [], []
     for client_id in range(cfg.n_clients):
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
-            test_x.append(cur_data['test_features']) if in_channels == 3 else test_x.append(cur_data['test_features'].unsqueeze(1))
-            test_y.append(cur_data['test_labels'])
+            test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
+            test_y = cur_data['test_labels']
         else:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}_round_-1.npy', allow_pickle=True).item()
-            test_x.append(cur_data['features']) if in_channels == 3 else test_x.append(cur_data['features'].unsqueeze(1))
-            test_y.append(cur_data['labels'])
-    test_dataset = models.CombinedDataset(np.concatenate(test_x, axis=0), \
-                                          np.concatenate(test_y, axis=0), \
-                                          transform=None)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+            test_x = cur_data['features'] if in_channels == 3 else cur_data['features'].unsqueeze(1)
+            test_y = cur_data['labels']
+        
+        # Create test dataset and loader
+        test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
+        test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
-    loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m\n")
-
-
+        # Evaluate on client
+        loss_test, accuracy_test = models.simple_test(model, device, test_loader)
+        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
+        accuracies.append(accuracy_test)
+        losses.append(loss_test)
+    
+    # Averaged accuracy across clients   
+    print(f"\n\033[93mTest Loss: {np.mean(losses):.3f}, Test Accuracy: {np.mean(accuracies)*100:.2f}\033[0m\n")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     
