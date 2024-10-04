@@ -62,27 +62,6 @@ MAX_LATENT_SPACE = 2
 
 # TODO DARIO
 # 2. Add std accuracy per class - descriptors
-
-# # client_descr_scaled
-# def client_descr_scaling(
-#         client_descr: np.ndarray = None,
-#         scaling_method: int = 1,
-#         scaler = None
-#         ) -> np.ndarray:
-    
-#     # Normalize by group of descriptors
-#     if scaling_method == 1:
-#         loss_pc = client_descr[:, :cfg.n_classes]
-#         latent_space = client_descr[:, cfg.n_classes:]
-#         scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-#         latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-#         return np.hstack((scaled_loss_pc, latent_space_pc))
-#     elif scaling_method == 2:
-#         # TODO weighted scaling
-#         return None
-#     else:
-#         print("Invalid scaling method!")
-#         return None
     
 # client_descr_scaled
 class client_descr_scaling:
@@ -226,8 +205,14 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             client_id_plot = []
             client_cid_list = []
             for proxy, res in results:
-                client_descr.append(json.loads(res.metrics["loss_pc"]) + \
-                        json.loads(res.metrics["latent_space"]))
+                if cfg.extended_descriptors:
+                    client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                                        json.loads(res.metrics["accuracy_pc"]) + \
+                                        json.loads(res.metrics["latent_space_mean"]) + \
+                                        json.loads(res.metrics["latent_space_std"]))
+                else:
+                    client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                                        json.loads(res.metrics["latent_space_mean"]))
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
             

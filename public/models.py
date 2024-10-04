@@ -21,6 +21,8 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.decomposition import PCA
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 
+import public.config as cfg
+
 #############################################################################################################
 # Models 
 #############################################################################################################
@@ -277,8 +279,9 @@ class ModelEvaluator:
         pca.fit(random_points)
         # transform latent_all
         latent_all = pca.transform(latent_all)
-        # Mean on first dimension
+        # Mean and std on first dimension
         latent_mean = list(np.mean(latent_all, axis=0))
+        latent_std = list(np.std(latent_all, axis=0))
             
         # Iterate through each class (for MNIST, classes are 0 to 9 by default)
         for class_idx in range(num_classes):
@@ -316,7 +319,8 @@ class ModelEvaluator:
             "f1_pc": json.dumps(f1_per_class),
             "accuracy_pc": json.dumps(accuracy_per_class),
             "loss_pc": json.dumps(loss_per_class),
-            "latent_space": json.dumps(latent_mean),
+            "latent_space_mean": json.dumps(latent_mean),
+            "latent_space_std": json.dumps(latent_mean),
             "max_latent_space": float(new_max_latent_space),
             "cid": int(client_id)
         }
@@ -402,8 +406,9 @@ class ModelEvaluator:
         pca.fit(random_points)
         # transform latent_all
         latent_all = pca.transform(latent_all)
-        # Mean on first dimension
+        # Mean and std on first dimension
         latent_mean = list(np.mean(latent_all, axis=0))
+        latent_std = list(np.std(latent_all, axis=0))
             
         # Iterate through each class (for MNIST, classes are 0 to 9 by default)
         for class_idx in range(num_classes):
@@ -428,7 +433,10 @@ class ModelEvaluator:
                 loss_per_class[class_idx] = class_loss
                 class_counts[class_idx] = class_mask.sum().item()
 
-        return np.array(loss_per_class + latent_mean)
+        if cfg.extended_descriptors:
+            return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
+        else:
+            return np.array(loss_per_class + latent_mean)
 
     def evaluate(self, model):
         """

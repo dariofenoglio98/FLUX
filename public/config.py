@@ -45,6 +45,7 @@ local_epochs = 2
 lr = 0.005
 momentum = 0.9
 transform = None
+extended_descriptors = False
 
 
 # self-defined settings
