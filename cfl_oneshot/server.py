@@ -57,10 +57,7 @@ from flwr.common import (
     NDArrays,
 )
 
-VERBOSE = True
 MAX_LATENT_SPACE = 2
-CLIENT_SCALING_METHOD = 2
-CLIENT_CLUSTER_METHOD = 1
 
 # TODO DARIO
 # 1. Save the cluster centroids (i already have the function in the dynamic
@@ -73,18 +70,16 @@ def client_descr_scaling(
         scaler = None
         ) -> np.ndarray:
     
-    # 1. Normalize each column between 0 and 1 
+    # Normalize by group of descriptors
     if scaling_method == 1:
-        # return scaler.fit_transform(client_descr)
-        return None
-    
-    # 2. Normalize by group of descriptors
-    elif scaling_method == 2:
         loss_pc = client_descr[:, :cfg.n_classes]
         latent_space = client_descr[:, cfg.n_classes:]
         scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
         latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-        return np.hstack((scaled_loss_pc, latent_space_pc)) # TODO weighted
+        return np.hstack((scaled_loss_pc, latent_space_pc))
+    elif scaling_method == 2:
+        # TODO weighted scaling
+        return None
     else:
         print("Invalid scaling method!")
         return None
@@ -206,14 +201,14 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 client_cid_list.append(proxy.cid)
             # scaling
             client_descr = client_descr_scaling(np.array(client_descr), 
-                                                CLIENT_SCALING_METHOD,  
+                                                cfg.cfl_oneshot_CLIENT_SCALING_METHOD,  
                                                 MinMaxScaler())
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
 
             # KMeans
-            if CLIENT_CLUSTER_METHOD == 1:
+            if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
                 range_n_clusters = range(2, cfg.n_clients)
                 # Store inertia (sum of squared distances to centroids) and silhouette scores
                 inertia, silhouette_scores = [], []
@@ -235,13 +230,13 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
 
             # DBSCAN
-            elif CLIENT_CLUSTER_METHOD == 2:
+            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 2:
                 clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             # HDBSCAN
-            elif CLIENT_CLUSTER_METHOD == 3:
+            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 3:
                 clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr) # Note negative values are outliers, here I make them positive for visualization
                 if min(cluster_labels) < 0:
@@ -257,8 +252,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
 
-            # TODO: save centroids (see dynamic code because i already have the centroid funciton)
-        
         ################################################################################
         # Federated averaging aggregation
         ################################################################################
@@ -302,7 +295,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Clustered, save cluster models
         if self.cluster_status == 2:
             # Save the aggregated cluster models
-            for cl, params in enumerate(self.aggregated_cluster_parameters):
+            for cl, params in self.aggregated_cluster_parameters.items():
                 print(f"Saving round {server_round} aggregated_cluster_parameters_{cl}...")
                 # Convert `Parameters` to `List[np.ndarray]`
                 aggregated_ndarrays: List[np.ndarray] = parameters_to_ndarrays(params)
@@ -449,7 +442,7 @@ def main() -> None:
 
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
-    model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
+    # model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
 
     # The following evaluation is incorrect
     # TODO: load the saved evaluation global model - give to each new client the right cluster model
@@ -460,8 +453,8 @@ def main() -> None:
     # 5. Aggregate the metrics and keep client metrics for further analysis
 
     # Generate server-side test dataset from clients test datasets
-    test_x, test_y = [], []
     for client_id in range(cfg.n_clients):
+        test_x, test_y = [], []
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
             test_x.append(cur_data['test_features']) if in_channels == 3 else test_x.append(cur_data['test_features'].unsqueeze(1))
