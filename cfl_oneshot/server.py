@@ -60,29 +60,57 @@ from flwr.common import (
 MAX_LATENT_SPACE = 2
 
 # TODO DARIO
-# 1. Save the cluster centroids (i already have the function in the dynamic
 # 2. Add std accuracy per class - descriptors
 
-# client_descr_scaled
-def client_descr_scaling(
-        client_descr: np.ndarray = None,
-        scaling_method: int = 1,
-        scaler = None
-        ) -> np.ndarray:
+# # client_descr_scaled
+# def client_descr_scaling(
+#         client_descr: np.ndarray = None,
+#         scaling_method: int = 1,
+#         scaler = None
+#         ) -> np.ndarray:
     
-    # Normalize by group of descriptors
-    if scaling_method == 1:
-        loss_pc = client_descr[:, :cfg.n_classes]
-        latent_space = client_descr[:, cfg.n_classes:]
-        scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-        latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-        return np.hstack((scaled_loss_pc, latent_space_pc))
-    elif scaling_method == 2:
-        # TODO weighted scaling
-        return None
-    else:
-        print("Invalid scaling method!")
-        return None
+#     # Normalize by group of descriptors
+#     if scaling_method == 1:
+#         loss_pc = client_descr[:, :cfg.n_classes]
+#         latent_space = client_descr[:, cfg.n_classes:]
+#         scaled_loss_pc = scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+#         latent_space_pc = scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+#         return np.hstack((scaled_loss_pc, latent_space_pc))
+#     elif scaling_method == 2:
+#         # TODO weighted scaling
+#         return None
+#     else:
+#         print("Invalid scaling method!")
+#         return None
+    
+# client_descr_scaled
+class client_descr_scaling:
+    def __init__(self, scaling_method: int = 1, scaler = None, *args, **kwargs):
+        self.scaling_method = scaling_method
+        self.scaler = scaler
+        self.fitted = False
+        
+    def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
+        # Normalize by group of descriptors
+        if self.scaling_method == 1:
+            loss_pc = client_descr[:, :cfg.n_classes]
+            latent_space = client_descr[:, cfg.n_classes:]
+            if self.fitted:
+                scaled_loss_pc = self.scaler.transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                latent_space_pc = self.scaler.transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+            else:
+                self.fitted = True
+                scaled_loss_pc = self.scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                latent_space_pc = self.scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+            return np.hstack((scaled_loss_pc, latent_space_pc))
+        
+        elif self.scaling_method == 2:
+            # TODO weighted scaling
+            return None
+        
+        else:
+            print("Invalid scaling method!")
+            return None 
 
 # Config_client
 def fit_config(server_round: int):
@@ -130,10 +158,11 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model, path, *args, **kwargs):
+    def __init__(self, model, path, descriptors_scaler, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model # used for saving checkpoints
         self.path = path # saving model path
+        self.descriptors_scaler = descriptors_scaler # used for scaling client descriptors
 
         self.aggregated_cluster_parameters = {} # [cluster_label] = model parameters
         self.cluster_labels = {}    # [cid] = cluster_label
@@ -199,10 +228,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                         json.loads(res.metrics["latent_space"]))
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
+            
             # scaling
-            client_descr = client_descr_scaling(np.array(client_descr), 
-                                                cfg.cfl_oneshot_CLIENT_SCALING_METHOD,  
-                                                MinMaxScaler())
+            client_descr = self.descriptors_scaler.scale(np.array(client_descr))
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
@@ -225,22 +253,32 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
                 # Identify the best number of clusters based on the highest silhouette score
                 best_n_clusters = range_n_clusters[np.argmax(silhouette_scores)]
-                kmeans_best = KMeans(n_clusters=best_n_clusters, random_state=cfg.random_seed)
-                cluster_labels = kmeans_best.fit_predict(client_descr)
+                clustering = KMeans(n_clusters=best_n_clusters, random_state=cfg.random_seed)
+                cluster_labels = clustering.fit_predict(client_descr)
+                # Centroids
+                cluster_centroids = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
 
             # DBSCAN
             elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 2:
                 clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr)
+                if min(cluster_labels) < 0: # -1 is for outliers
+                    cluster_labels = cluster_labels + abs(min(cluster_labels))
+                # Centroids
+                cluster_centroids = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                    
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             # HDBSCAN
             elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 3:
                 clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr) # Note negative values are outliers, here I make them positive for visualization
-                if min(cluster_labels) < 0:
+                if min(cluster_labels) < 0: # -1 is for outliers
                     cluster_labels = cluster_labels + abs(min(cluster_labels))
+                # Centroids
+                cluster_centroids = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                    
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
             
             else:
@@ -388,14 +426,16 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
         # Clustering requirements detection
         print(f"\033[93mRound {server_round} - Aggregated loss: {loss_aggregated} - Aggregated metrics: {metrics_aggregated}\033[0m")
-        if metrics_aggregated["accuracy"] > cfg.th_accuracy and self.cluster_status == 0:
+        
+        if self.cluster_status == 0: 
+            # Update the max_latent_space for the next round
+            max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
+            global MAX_LATENT_SPACE 
+            MAX_LATENT_SPACE = 1.02 * max_client_latent_space 
+            
+        if metrics_aggregated["accuracy"] >= cfg.th_accuracy and self.cluster_status == 0:
             self.cluster_status = 1
             print(f"\033[93mRound {server_round} - Will be clustering next round\033[0m")
-        
-        # Update the max_latent_space for the next round
-        max_client_latent_space = max([res.metrics["max_latent_space"] for _, res in results])
-        global MAX_LATENT_SPACE 
-        MAX_LATENT_SPACE = 1.02 * max_client_latent_space 
 
         return loss_aggregated, metrics_aggregated
 
@@ -409,12 +449,14 @@ def main() -> None:
     in_channels = utils.get_in_channels()
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-
+    descriptors_scaler = client_descr_scaling(scaling_method=cfg.cfl_oneshot_CLIENT_SCALING_METHOD, scaler=MinMaxScaler())
+    
     # Define strategy
     strategy = SaveModelStrategy(
         # self defined
         model=model,
         path=exp_path,
+        descriptors_scaler=descriptors_scaler,
         # super
         min_fit_clients=cfg.n_clients, # always all training
         min_evaluate_clients=cfg.n_clients, # always all evaluating
@@ -451,26 +493,54 @@ def main() -> None:
     # 3. Check for each client dataset which centroids is the closest
     # 4. Evaluate the respective (closest) cluster model on that client dataset 
     # 5. Aggregate the metrics and keep client metrics for further analysis
+    
+    # Read cluster centroids from json
+    cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    print(f"Cluster centroids: {cluster_centroids}")
+    
+    # Load global model for evaluation
+    evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
+                                          input_size=cfg.input_size).to(device)
+    evaluation_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
 
+    losses, accuracies = [], []
     # Generate server-side test dataset from clients test datasets
     for client_id in range(cfg.n_clients):
-        test_x, test_y = [], []
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
-            test_x.append(cur_data['test_features']) if in_channels == 3 else test_x.append(cur_data['test_features'].unsqueeze(1))
-            test_y.append(cur_data['test_labels'])
+            test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
+            test_y = cur_data['test_labels']
         else:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}_round_-1.npy', allow_pickle=True).item()
-            test_x.append(cur_data['features']) if in_channels == 3 else test_x.append(cur_data['features'].unsqueeze(1))
-            test_y.append(cur_data['labels'])
-    test_dataset = models.CombinedDataset(np.concatenate(test_x, axis=0), \
-                                          np.concatenate(test_y, axis=0), \
-                                          transform=None)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+            test_x = cur_data['features'] if in_channels == 3 else cur_data['features'].unsqueeze(1)
+            test_y = cur_data['labels']
+        
+        # Create test dataset and loader
+        test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
+        test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
+    
+        # Extract descriptors from each client test dataset
+        descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
+                                                    model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
+        
+        # Scale
+        descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+        
+        # Find the closest cluster centroid
+        closest_centroid = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
+        print(f"\n\033[93mClient {client_id} - closest centroid {closest_centroid}\033[0m - Descriptors: {descriptors}")
 
-    loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-    print(f"\n\033[93mTest Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
-
+        # Load respective cluster model
+        cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
+                                          input_size=cfg.input_size).to(device)
+        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{closest_centroid}.pth", weights_only=False))
+        loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)
+        print(f"Client {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}")
+        losses.append(loss_test)
+        accuracies.append(accuracy_test)
+    
+    # print average loss and accuracy
+    print(f"\n\033[93mAverage Loss: {np.mean(losses):.3f}, Average Accuracy: {np.mean(accuracies)*100:.2f}\033[0m")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     

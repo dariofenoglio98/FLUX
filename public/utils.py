@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import os
+import json
 
 import public.config as cfg
 
@@ -132,3 +133,41 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
     # Set PYTHONHASHSEED
     os.environ['PYTHONHASHSEED'] = str(seed)
+
+# Calculate centroids
+def calculate_centroids(data, clustering_method, cluster_labels, save=True):
+    """
+    Calculate the centroids of the clusters.
+    
+    Args:
+    data: np.ndarray
+        The data points.
+    clustering_method: sklearn.cluster object
+        The clustering method used.
+    cluster_labels: np.ndarray
+        The cluster labels.
+    
+    Returns:
+    dict
+        A dictionary containing the cluster label as the key and the centroid as the value.
+    """
+    
+    # Kmeans
+    if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
+        centroids = clustering_method.cluster_centers_
+        centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
+    
+    # DBSCAN and HDBSCAN
+    elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD in [2, 3]:
+        centroids_dict = {}
+        for label in np.unique(cluster_labels):
+            cluster_points = data[cluster_labels == label]
+            centroids_dict[label] = np.array(cluster_points.mean(axis=0))
+    
+    # Save
+    if save:
+        path = f"results/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}"
+        os.makedirs(path, exist_ok=True)
+        np.save(f"{path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
+    
+    return centroids_dict
