@@ -17,6 +17,7 @@ in the same clusters. The training continues until the end.
 
 # Libraries
 import json
+import copy
 import time
 import torch
 import numpy as np
@@ -87,7 +88,8 @@ MAX_LATENT_SPACE = 2
 class client_descr_scaling:
     def __init__(self, scaling_method: int = 1, scaler = None, *args, **kwargs):
         self.scaling_method = scaling_method
-        self.scaler = scaler
+        self.scaler_metrics = scaler
+        self.scaler_latent = copy.deepcopy(scaler)
         self.fitted = False
         
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
@@ -96,12 +98,12 @@ class client_descr_scaling:
             loss_pc = client_descr[:, :cfg.n_classes]
             latent_space = client_descr[:, cfg.n_classes:]
             if self.fitted:
-                scaled_loss_pc = self.scaler.transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-                latent_space_pc = self.scaler.transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+                scaled_loss_pc = self.scaler_metrics.transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                latent_space_pc = self.scaler_latent.transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
             else:
                 self.fitted = True
-                scaled_loss_pc = self.scaler.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
-                latent_space_pc = self.scaler.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+                scaled_loss_pc = self.scaler_metrics.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                latent_space_pc = self.scaler_latent.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
             return np.hstack((scaled_loss_pc, latent_space_pc))
         
         elif self.scaling_method == 2:
@@ -288,7 +290,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             self.n_clusters = max(cluster_labels) + 1
             self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
 
-            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters ({self.cluster_labels.values()})\033[0m")
+            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
 
         ################################################################################
         # Federated averaging aggregation
@@ -484,27 +486,17 @@ def main() -> None:
 
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
-    # model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
-
-    # The following evaluation is incorrect
-    # TODO: load the saved evaluation global model - give to each new client the right cluster model
-    # 1. Load the evaluation model
-    # 2. Extract the descriptors () from each test client datasset
-    # 3. Check for each client dataset which centroids is the closest
-    # 4. Evaluate the respective (closest) cluster model on that client dataset 
-    # 5. Aggregate the metrics and keep client metrics for further analysis
     
     # Read cluster centroids from json
     cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-    print(f"Cluster centroids: {cluster_centroids}")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
     evaluation_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
 
+    # Evaluate the model on the client datasets    
     losses, accuracies = [], []
-    # Generate server-side test dataset from clients test datasets
     for client_id in range(cfg.n_clients):
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
@@ -528,17 +520,18 @@ def main() -> None:
         
         # Find the closest cluster centroid
         closest_centroid = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
-        print(f"\n\033[93mClient {client_id} - closest centroid {closest_centroid}\033[0m - Descriptors: {descriptors}")
 
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
         cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{closest_centroid}.pth", weights_only=False))
+        
+        # Evaluate
         loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)
-        print(f"Client {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}")
-        losses.append(loss_test)
+        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f} - Closest centroid {closest_centroid}\033[0m")
         accuracies.append(accuracy_test)
-    
+        losses.append(loss_test)
+
     # print average loss and accuracy
     print(f"\n\033[93mAverage Loss: {np.mean(losses):.3f}, Average Accuracy: {np.mean(accuracies)*100:.2f}\033[0m")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
