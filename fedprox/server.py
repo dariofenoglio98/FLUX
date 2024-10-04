@@ -80,7 +80,7 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     return weights_prime
 
 # Custom strategy to save model after each round
-class SaveModelStrategy(fl.server.strategy.FedProx):
+class SaveModelStrategyProx(fl.server.strategy.FedProx):
     def __init__(self, model, path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model  # used for saving checkpoints
@@ -149,7 +149,7 @@ def main() -> None:
                                           input_size=cfg.input_size).to(device)
 
     # Define strategy
-    strategy = SaveModelStrategy(
+    strategy = SaveModelStrategyProx(
         # self defined
         model=model,
         path=exp_path,

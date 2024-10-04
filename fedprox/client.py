@@ -94,7 +94,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 device=self.device,
                                 train_loader=cur_train_loader, 
                                 optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
-                                proximal_mu=cfg.fedprox_proximal_mu,
+                                proximal_mu=config["proximal_mu"],
                                 epoch=epoch,
                                 client_id=self.client_id)
 
