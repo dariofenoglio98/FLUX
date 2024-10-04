@@ -1,1 +1,0 @@
-echo -e "\n\033[1;36mExperiment settings\033[0m\n\033[1;36mMODEL:\033[0m\n"

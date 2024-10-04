@@ -80,7 +80,7 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     return weights_prime
 
 # Custom strategy to save model after each round
-class SaveModelStrategy(fl.server.strategy.FedAvg):
+class SaveModelStrategy(fl.server.strategy.FedProx):
     def __init__(self, model, path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model  # used for saving checkpoints
@@ -160,6 +160,7 @@ def main() -> None:
         evaluate_metrics_aggregation_fn=weighted_average,
         on_fit_config_fn=fit_config,
         on_evaluate_config_fn=fit_config,
+        proximal_mu = cfg.fedprox_proximal_mu,
     )
 
     # Start Flower server and (finish all training and evaluation)

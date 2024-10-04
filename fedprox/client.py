@@ -33,14 +33,14 @@ import public.models as models
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self,
         model,
-        client_id, 
+        client_id,
         device
         ):
         self.model = model
         self.client_id = client_id
         self.device = device
         self.drifting_log = []
-
+        
         if cfg.training_drifting:
             drifting_log = np.load(f'../data/cur_datasets/drifting_log.npy', allow_pickle=True).item()
             self.drifting_log = drifting_log[self.client_id-1]
@@ -85,44 +85,38 @@ class FlowerClient(fl.client.NumPyClient):
     # override
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        # print(f"Parameters set for client {self.client_id} - {self.model[0][0]}")
         cur_round = config["current_round"]
         cur_train_loader = self.load_current_data(cur_round, train=True)
-        
-        # Extract descriptors
-        descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.model, \
-                                                        client_id=self.client_id, max_latent_space=config["max_latent_space"])
 
         # Train the model   
         for epoch in range(config["local_epochs"]):
-            models.simple_train(model=self.model,
+            models.fedprox_train(model=self.model,
                                 device=self.device,
                                 train_loader=cur_train_loader, 
                                 optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
+                                proximal_mu=cfg.fedprox_proximal_mu,
                                 epoch=epoch,
                                 client_id=self.client_id)
 
-        return self.get_parameters(config), len(cur_train_loader.dataset), descriptors
+        return self.get_parameters(config), len(cur_train_loader.dataset), {}
     
+    # override
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
         cur_val_loader = self.load_current_data(cur_round, train=False)
 
-        loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = \
+        loss_trad, accuracy_trad, f1_score_trad, _ = \
             models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
 
         # quick check results
         print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}") \
-            if self.client_id == 1 else None       
+            if self.client_id == 1 else None
 
         return float(loss_trad), len(cur_val_loader.dataset), {
             "accuracy": float(accuracy_trad),
-            "f1_score": float(f1_score_trad),
-            "max_latent_space": float(new_max_latent_space), # TODO where used?
-            "cid": int(self.client_id) # TODO need?
+            "f1_score": float(f1_score_trad)
         }
-
 
 # main
 def main() -> None:

@@ -39,7 +39,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.model = model
         self.client_id = client_id
         self.device = device
-        self.train_fn = models.simple_train
         self.drifting_log = []
         
         if cfg.training_drifting:
@@ -87,17 +86,16 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
-
         cur_train_loader = self.load_current_data(cur_round, train=True)
 
         # Train the model   
         for epoch in range(config["local_epochs"]):
-            self.train_fn(model=self.model,
-                          device=self.device,
-                          train_loader=cur_train_loader, 
-                          optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
-                          epoch=epoch,
-                          client_id=self.client_id)
+            models.simple_train(model=self.model,
+                                device=self.device,
+                                train_loader=cur_train_loader, 
+                                optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
+                                epoch=epoch,
+                                client_id=self.client_id)
 
         return self.get_parameters(config), len(cur_train_loader.dataset), {}
     
@@ -105,7 +103,6 @@ class FlowerClient(fl.client.NumPyClient):
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
-
         cur_val_loader = self.load_current_data(cur_round, train=False)
 
         loss_trad, accuracy_trad, f1_score_trad, _ = \

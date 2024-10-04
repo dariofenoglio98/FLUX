@@ -18,8 +18,10 @@ def create_folders():
 # define device
 def check_gpu():
     torch.manual_seed(cfg.random_seed)
-    if torch.cuda.is_available():
-        device = 'cuda:' + int(cfg.gpu)
+    if cfg.gpu == -1:
+        device = 'cpu'
+    elif torch.cuda.is_available():
+        device = 'cuda:' + str(cfg.gpu)
         torch.cuda.manual_seed_all(cfg.random_seed) 
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -50,7 +52,7 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
     plt.ylabel('Metrics')
     plt.title('Distributed Metrics (Weighted Average on Test-Set)')
     plt.legend()
-    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/training_{rounds}_rounds.png")
+    plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png")
     if show:
         plt.show()
     return min_loss_index+1, max_accuracy_index+1
