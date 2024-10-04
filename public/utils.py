@@ -64,7 +64,8 @@ def cluster_plot(X_reduced, cluster_labels, client_cid, server_round, name="KMea
         os.makedirs(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/plots_descriptors")
     
     # number of clusters - only number of cluster_labels - no string element
-    n_clusters = np.unique([n for n in cluster_labels if n.isnumeric()]).shape[0]
+    # n_clusters = np.unique([n for n in cluster_labels if n.isnumeric()]).shape[0]
+    n_clusters = np.unique(cluster_labels).shape[0]
     
     # Plot the clusters
     plt.figure(figsize=(10, 6))

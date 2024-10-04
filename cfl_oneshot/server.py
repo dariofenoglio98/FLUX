@@ -58,9 +58,8 @@ from flwr.common import (
 )
 
 VERBOSE = True
-# Define the max latent space as global variable
 MAX_LATENT_SPACE = 2
-CLIENT_SCALING_METHOD = 1
+CLIENT_SCALING_METHOD = 2
 CLIENT_CLUSTER_METHOD = 1
 
 # TODO DARIO
@@ -76,7 +75,8 @@ def client_descr_scaling(
     
     # 1. Normalize each column between 0 and 1 
     if scaling_method == 1:
-        return scaler.fit_transform(client_descr)
+        # return scaler.fit_transform(client_descr)
+        return None
     
     # 2. Normalize by group of descriptors
     elif scaling_method == 2:
@@ -214,7 +214,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
             # KMeans
             if CLIENT_CLUSTER_METHOD == 1:
-                range_n_clusters = range(2, cfg.n_classes)
+                range_n_clusters = range(2, cfg.n_clients)
                 # Store inertia (sum of squared distances to centroids) and silhouette scores
                 inertia, silhouette_scores = [], []
                 for n_clusters in range_n_clusters:

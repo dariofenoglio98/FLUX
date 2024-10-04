@@ -4,16 +4,15 @@ random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
 
 # Strategy settings
-strategy = 'fedavg' # ['fedavg', 'cfl_oneshot', 'cfl_drift','fedprox']
 fedprox_proximal_mu = 0.1 # param for fedprox only
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'feature_skew' # refer to ANDA page for more details
-n_clients = 2
-show_features = True # show generated feature details if any
-show_labels = True # show distribution of data if any
+n_clients = 4
+show_features = False # show generated feature details if any
+show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
     # 'set_color':True,
