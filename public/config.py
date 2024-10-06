@@ -2,10 +2,12 @@
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
+n_clients = 10
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 1
+extended_descriptors = False
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
@@ -13,7 +15,6 @@ fedprox_proximal_mu = 0.1
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'label_skew' # refer to ANDA page for more details
-n_clients = 10
 show_features = False # show generated feature details if any
 show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
@@ -44,9 +45,6 @@ n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
-transform = None
-extended_descriptors = False
-
 
 # self-defined settings
 n_classes_dict = {

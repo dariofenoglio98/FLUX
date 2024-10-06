@@ -161,8 +161,8 @@ def fedprox_train(model, device, train_loader, optimizer, proximal_mu, epoch, cl
 # simple test function
 def simple_test(model, device, test_loader):
     model.eval()
-    test_loss = 0
-    correct = 0
+    test_loss = 0.0
+    correct = 0.0
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -515,7 +515,6 @@ class CombinedDataset(Dataset):
             x = self.transform(x)
 
         return x, y
-
 
 #############################################################################################################
 # test the models

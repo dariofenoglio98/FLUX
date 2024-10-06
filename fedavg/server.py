@@ -124,8 +124,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         if aggregated_parameters_global is not None:
 
-            # TODO: save only best accuracy model and loss model
-
             print(f"Saving round {server_round} aggregated_parameters...")
             # Convert `Parameters` to `List[np.ndarray]`
             aggregated_ndarrays: List[np.ndarray] = parameters_to_ndarrays(aggregated_parameters_global)
@@ -133,7 +131,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             params_dict = zip(self.model.state_dict().keys(), aggregated_ndarrays)
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             self.model.load_state_dict(state_dict, strict=True)
-            # Save the model
+            # Save the model. TODO: save only best accuracy model and loss model
             torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{server_round}.pth")
         
         return aggregated_parameters_global, aggregated_metrics
@@ -185,6 +183,7 @@ def main() -> None:
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
     for client_id in range(cfg.n_clients):
+        test_x, test_y = [], []
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
             test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)

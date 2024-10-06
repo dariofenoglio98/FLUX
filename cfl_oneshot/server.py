@@ -484,6 +484,7 @@ def main() -> None:
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
     for client_id in range(cfg.n_clients):
+        test_x, test_y = [], []
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
             test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
