@@ -202,7 +202,7 @@ def main() -> None:
 
         # Evaluate on client
         loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
+        print(f"\033[93mClient {client_id+1} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
         accuracies.append(accuracy_test)
         losses.append(loss_test)
     

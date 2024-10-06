@@ -110,17 +110,14 @@ class FlowerClient(fl.client.NumPyClient):
         cur_val_loader = self.load_current_data(cur_round, train=False)
 
         loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = \
-            models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
-
-        # quick check results
-        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}") \
-            if self.client_id == 1 else None       
+            models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)    
 
         return float(loss_trad), len(cur_val_loader.dataset), {
             "accuracy": float(accuracy_trad),
             "f1_score": float(f1_score_trad),
-            "max_latent_space": float(new_max_latent_space), # TODO where used?
-            "cid": int(self.client_id) # TODO need?
+            "max_latent_space": float(new_max_latent_space),
+            "cid": int(self.client_id),
+            "round": int(cur_round)
         }
 
 

@@ -135,7 +135,10 @@ def set_seed(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
 
 # Calculate centroids
-def calculate_centroids(data, clustering_method, cluster_labels, save=True):
+def calculate_centroids(data: np.ndarray,
+                        clustering_method,
+                        cluster_labels,
+                        save=True):
     """
     Calculate the centroids of the clusters.
     
@@ -148,7 +151,6 @@ def calculate_centroids(data, clustering_method, cluster_labels, save=True):
         The cluster labels.
     
     Returns:
-    dict
         A dictionary containing the cluster label as the key and the centroid as the value.
     """
     
@@ -167,7 +169,6 @@ def calculate_centroids(data, clustering_method, cluster_labels, save=True):
     # Save
     if save:
         path = f"results/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}"
-        os.makedirs(path, exist_ok=True)
         np.save(f"{path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
     
     return centroids_dict
