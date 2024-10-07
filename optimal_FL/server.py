@@ -20,6 +20,7 @@ import json
 import copy
 import time
 import torch
+import argparse
 import numpy as np
 from functools import reduce
 from logging import WARNING
@@ -277,8 +278,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
 # Main
 def main() -> None:
+    # Get arguments
+    parser = argparse.ArgumentParser(description='Clustered Federated Learning - Server')
+    parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
+    args = parser.parse_args()
 
-    utils.set_seed(cfg.random_seed)
+    utils.set_seed(cfg.random_seed + args.fold)
     start_time = time.time()
     exp_path = utils.create_folders()
     device = utils.check_gpu()

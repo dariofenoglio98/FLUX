@@ -183,7 +183,17 @@ def main()->None:
         required=True,
         help="Specifies the artificial data partition",
     )
+    parser.add_argument(
+        "--fold",
+        type=int,
+        required=False,
+        default=0,
+        help="Specifies the fold number of the cross-validation",
+    )
     args = parser.parse_args()
+
+    # Load device, model and data
+    utils.set_seed(cfg.random_seed + args.fold)
 
     # check gpu and set manual seed
     device = utils.check_gpu(manual_seed=True)

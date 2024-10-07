@@ -1,4 +1,5 @@
 # Overall settings
+k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
@@ -16,8 +17,8 @@ fedprox_proximal_mu = 0.001
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
-show_features = True # show generated feature details if any
-show_labels = True # show distribution of data if any
+show_features = False # show generated feature details if any
+show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
     # 'set_rotation':True,
@@ -25,8 +26,8 @@ args = {
     # 'set_color':True,
     # 'colors':2,
     # 'show_distribution':True,
-    'client_n_class':2,
-    'py_bank':4,
+    # 'client_n_class':2,
+    # 'py_bank':4,
     # 'random_mode':True,
     # 'mixing_label_number':3,
     # 'scaling_label_low':1.0,

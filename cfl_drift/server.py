@@ -646,14 +646,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
 # Main
 def main() -> None:
-    # parser = argparse.ArgumentParser(description="Flower")
-    # parser.add_argument(
-    #     "--rounds",
-    #     type=int,
-    #     default=20,
-    #     help="Specifies the number of FL rounds",
-    # )
-    # args = parser.parse_args()
+    # Get arguments
+    parser = argparse.ArgumentParser(description='Dynamic Clustered Federated Learning - Server')
+    parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
+    args = parser.parse_args()
     
     # Start time
     start_time = time.time()

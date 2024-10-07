@@ -4,12 +4,18 @@
 import config as cfg
 
 import numpy as np
+import argparse
 import sys
 import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 from ANDA import anda
+
+# Get arguments
+parser = argparse.ArgumentParser(description='Generate datasets for ANDA')
+parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
+args = parser.parse_args()
 
 # valid dataset names
 assert cfg.dataset_name in ['CIFAR10', 'CIFAR100', 'MNIST', 'FMNIST', 'EMNIST'], \
@@ -44,7 +50,7 @@ if cfg.drifting_type == 'static':
         mode = "manual",
         show_features = cfg.show_features,
         show_labels = cfg.show_labels,
-        random_seed = cfg.random_seed,
+        random_seed = cfg.random_seed + args.fold,
         **cfg.args
     )
 elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR_teND']:
@@ -56,7 +62,7 @@ elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR
         drfting_type = cfg.drifting_type,
         show_features = cfg.show_features,
         show_labels = cfg.show_labels,
-        random_seed = cfg.random_seed,
+        random_seed = cfg.random_seed + args.fold,
         **cfg.args
     )
 else:

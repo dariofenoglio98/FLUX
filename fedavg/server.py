@@ -8,6 +8,7 @@ run the appopriate client code (client.py).
 
 from typing import List, Tuple, Union, Optional, Dict
 import numpy as np
+import argparse
 import torch
 from torch.utils.data import DataLoader
 from logging import WARNING
@@ -137,8 +138,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         return aggregated_parameters_global, aggregated_metrics
 
 def main() -> None:
+    # Get arguments
+    parser = argparse.ArgumentParser(description='FedAvg - Server')
+    parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
+    args = parser.parse_args()
 
-    utils.set_seed(cfg.random_seed)
+    utils.set_seed(cfg.random_seed + args.fold)
     start_time = time.time()
     exp_path = utils.create_folders()
     device = utils.check_gpu()
