@@ -80,6 +80,7 @@ class client_descr_scaling:
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
+            # TODO: not anymore correct
             loss_pc = client_descr[:, :cfg.n_classes]
             latent_space = client_descr[:, cfg.n_classes:]
             if self.fitted:
