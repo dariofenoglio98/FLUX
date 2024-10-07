@@ -18,6 +18,10 @@ __pycache__/
 # Torch model files or datasets
 *.pt
 *.pth
+
+# numpy
+*.npy
+.*.gz
  
 # csv files
 *.csv
