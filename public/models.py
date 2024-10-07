@@ -311,7 +311,16 @@ class ModelEvaluator:
                 accuracy_per_class[class_idx] = accuracy
                 loss_per_class[class_idx] = class_loss
                 class_counts[class_idx] = class_mask.sum().item()
-
+            else:
+                # If there are no samples for this class, set the metrics to -1
+                precision_per_class[class_idx] = -1
+                recall_per_class[class_idx] = -1
+                f1_per_class[class_idx] = -1
+                accuracy_per_class[class_idx] = -1
+                loss_per_class[class_idx] = -1
+                class_counts[class_idx] = 0
+            
+            
         res = {
             "num_examples_val": len(self.test_loader.dataset),
             "loss_val": float(loss_trad),
@@ -324,6 +333,7 @@ class ModelEvaluator:
             "latent_space_mean": json.dumps(latent_mean),
             "latent_space_std": json.dumps(latent_mean),
             "max_latent_space": float(new_max_latent_space),
+            "class_counts": json.dumps(class_counts),
             "cid": int(client_id)
         }
 

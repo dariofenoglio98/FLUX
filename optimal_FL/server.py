@@ -344,6 +344,7 @@ def main() -> None:
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
         # Load respective cluster model
+        known_cluster = 0 # TODO
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
         cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{known_cluster}.pth", weights_only=False))
