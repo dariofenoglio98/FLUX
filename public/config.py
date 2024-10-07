@@ -15,8 +15,8 @@ fedprox_proximal_mu = 0.001
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'label_skew_strict' # refer to ANDA page for more details
-show_features = True # show generated feature details if any
-show_labels = True # show distribution of data if any
+show_features = False # show generated feature details if any
+show_labels = False # show distribution of data if any
 # careful with the args applying to your settings above
 args = {
     # 'set_rotation':True,
@@ -40,7 +40,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 5
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
