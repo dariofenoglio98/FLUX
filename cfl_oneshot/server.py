@@ -107,6 +107,7 @@ def fit_config(server_round: int):
         "current_round": server_round,
         "local_epochs": cfg.local_epochs,
         "tot_rounds": cfg.n_rounds,
+        "extract_descriptors": False, 
         "min_latent_space": 0,
         "max_latent_space": MAX_LATENT_SPACE,
     }
@@ -174,6 +175,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if self.on_fit_config_fn is not None:
             # Custom fit config function provided
             config = self.on_fit_config_fn(server_round)      # Config sent to clients during training 
+            if self.cluster_status > 0:
+                config["extract_descriptors"] = True
             
         # Sample clients
         sample_size, min_num_clients = self.num_fit_clients(
@@ -300,13 +303,18 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
             for _, fit_res in results
         ]
+
+        cur_round_cids = [proxy.cid for proxy, _ in results]
         
         # Clustered, update to cluster models
         if self.cluster_status == 2:
             # Split aggregation into clusters
             client_clusters = {i: [] for i in range(self.n_clusters)}
-            for i, cluster in enumerate(self.cluster_labels.values()):
-                client_clusters[cluster].append(weights_results[i])
+            for i in range(cfg.n_clients):
+                cur_cid = cur_round_cids[i]
+                cur_cluster = self.cluster_labels[cur_cid]
+                client_clusters[cur_cluster].append(weights_results[i])
+
             # Aggregate each cluster
             for cl, param in client_clusters.items():
                 self.aggregated_cluster_parameters[cl] = ndarrays_to_parameters(aggregate(param))

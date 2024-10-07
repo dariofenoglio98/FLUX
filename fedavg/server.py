@@ -176,7 +176,7 @@ def main() -> None:
     with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
-    # Plots and Evaluation the model on the client datasets
+    # Plots and Evaluation the model on the client datasets, (averaged)
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
     model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))
 
@@ -204,7 +204,7 @@ def main() -> None:
         losses.append(loss_test)
     
     # Averaged accuracy across clients   
-    print(f"\n\033[93mTest Loss: {np.mean(losses):.3f}, Test Accuracy: {np.mean(accuracies)*100:.2f}\033[0m\n")
+    print(f"\n\033[93mAverage Test Loss: {np.mean(losses):.3f}, Average Test Accuracy: {np.mean(accuracies)*100:.2f}\033[0m\n")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     time.sleep(1)
     

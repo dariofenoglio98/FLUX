@@ -90,7 +90,9 @@ class FlowerClient(fl.client.NumPyClient):
         cur_train_loader = self.load_current_data(cur_round, train=True)
         
         # Extract descriptors
-        descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.model, \
+        descriptors = {}
+        if config['extract_descriptors']:
+            descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.model, \
                                                         client_id=self.client_id, max_latent_space=config["max_latent_space"])
 
         # Train the model   

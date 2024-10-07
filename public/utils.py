@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import os
-import json
-
+from typing import List
 import public.config as cfg
 
 # Create folders
@@ -33,18 +32,38 @@ def check_gpu():
     return device
 
 # plot and save plot on server side
-def plot_loss_and_accuracy(loss, accuracy,  show=True):
-    # read args
-    rounds = cfg.n_rounds
+def plot_loss_and_accuracy(
+        loss: List[float],
+        accuracy: List[float],
+        show: bool = True):
     
-    # Plot loss and accuracy
-    plt.figure(figsize=(12, 6))
+    # # Plot loss separately
+    # plt.figure(figsize=(12, 6))
+    # plt.plot(loss, label='Loss', color='blue')
+    # min_loss_index = loss.index(min(loss))
+    # plt.scatter(min_loss_index, loss[min_loss_index], color='red', marker='*', s=100, label='Min Loss')
+    
+    # # Labels and title for loss
+    # plt.xlabel('Rounds')
+    # plt.ylabel('Loss')
+    # plt.title('Distributed Loss (Weighted Average on Test-Set)')
+    # plt.legend()
+    
+    # # Save the loss plot
+    # loss_plot_path = f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/{cfg.non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png"
+    # plt.savefig(loss_plot_path)
+    # if show:
+    #     plt.show()
+
+
+
 
     plt.plot(loss, label='Loss')
     plt.plot(accuracy, label='Accuracy')
     min_loss_index = loss.index(min(loss))
     max_accuracy_index = accuracy.index(max(accuracy))
-    print(f"\n\033[1;34mServer Side\033[0m \nMinimum Loss occurred at round {min_loss_index + 1} with a loss value of {loss[min_loss_index]:.3f} \nMaximum Accuracy occurred at round {max_accuracy_index + 1} with an accuracy value of {accuracy[max_accuracy_index]*100:.2f}\n")
+    print(f"\n\033[1;34mServer Side\033[0m \nMinimum Loss occurred at round {min_loss_index + 1} with a loss value of {loss[min_loss_index]:.3f} \n \
+          Maximum Accuracy occurred at round {max_accuracy_index + 1} with an accuracy value of {accuracy[max_accuracy_index]*100:.2f}\n")
     plt.scatter(min_loss_index, loss[min_loss_index], color='blue', marker='*', s=100, label='Min Loss')
     plt.scatter(max_accuracy_index, accuracy[max_accuracy_index], color='orange', marker='*', s=100, label='Max Accuracy')
     
@@ -54,8 +73,8 @@ def plot_loss_and_accuracy(loss, accuracy,  show=True):
     plt.title('Distributed Metrics (Weighted Average on Test-Set)')
     plt.legend()
     plt.savefig(f"images/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png")
-    if show:
-        plt.show()
+
+    plt.show() if show else None
     return min_loss_index+1, max_accuracy_index+1
 
 # Cluster plot

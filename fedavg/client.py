@@ -108,9 +108,8 @@ class FlowerClient(fl.client.NumPyClient):
         loss_trad, accuracy_trad, f1_score_trad, _ = \
             models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
 
-        # quick check results
-        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}") \
-            if self.client_id == 1 else None
+        # quick check results and save for plot
+        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}")
 
         return float(loss_trad), len(cur_val_loader.dataset), {
             "accuracy": float(accuracy_trad),
