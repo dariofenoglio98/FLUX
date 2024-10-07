@@ -176,6 +176,9 @@ def main() -> None:
     with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
+    # Plot client training loss and accuracy
+    utils.plot_all_clients_metrics()
+
     # Plots and Evaluation the model on the client datasets, (averaged)
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
     model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_round_{best_loss_round}.pth", weights_only=False))

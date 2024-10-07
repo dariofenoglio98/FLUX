@@ -41,6 +41,13 @@ class FlowerClient(fl.client.NumPyClient):
         self.device = device
         self.drifting_log = []
         
+        # plot
+        self.metrics = {
+            "rounds": [],
+            "loss": [],
+            "accuracy": []
+        }
+
         if cfg.training_drifting:
             drifting_log = np.load(f'../data/cur_datasets/drifting_log.npy', allow_pickle=True).item()
             self.drifting_log = drifting_log[self.client_id-1]
@@ -109,9 +116,12 @@ class FlowerClient(fl.client.NumPyClient):
         loss_trad, accuracy_trad, f1_score_trad, _ = \
             models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
 
-        # quick check results
-        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}") \
-            if self.client_id == 1 else None
+        # quick check results and save for plot
+        print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}")
+        self.metrics["rounds"].append(cur_round)
+        self.metrics["loss"].append(loss_trad)
+        self.metrics["accuracy"].append(accuracy_trad)
+        np.save(f"results/{cfg.default_path}/client_{self.client_id}_metrics.npy", self.metrics)
 
         return float(loss_trad), len(cur_val_loader.dataset), {
             "accuracy": float(accuracy_trad),

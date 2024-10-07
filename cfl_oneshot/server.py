@@ -115,10 +115,6 @@ def fit_config(server_round: int):
 
 # Custom weighted average function
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
-    # per client
-    for _,m in metrics:
-        print(f"Client {m["cid"]} - Round {m["round"]} - Accuracy: {m["accuracy"]:.4f}")
-    
     # Multiply accuracy of each client by number of examples used
     accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
     # validities = [num_examples * m["validity"] for num_examples, m in metrics]
@@ -497,6 +493,9 @@ def main() -> None:
     print(f"Saving metrics to as .json in histories folder...")
     with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
+
+    # Plot client training loss and accuracy
+    utils.plot_all_clients_metrics()
 
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
