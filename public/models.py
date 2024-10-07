@@ -260,6 +260,8 @@ class ModelEvaluator:
         
         # Average traditional loss over the total number of samples
         loss_trad /= total_samples
+
+        # Weight the loss / metric 
         
         # Calculate traditional accuracy on the entire test set
         accuracy_trad = accuracy_score(y_true_all, y_pred_all)

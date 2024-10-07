@@ -33,7 +33,9 @@ if cfg.drifting_type == 'static':
                                 'label_condition_skew_unbalanced',
                                 'feature_condition_skew_unbalanced',
                                 'label_skew_unbalanced',
-                                'feature_skew_unbalanced'
+                                'feature_skew_unbalanced',
+                                'feature_skew_strict',
+                                'label_skew_strict',
     ], "Non-IID type not supported in static mode! Please check the ANDA page for more details."
     anda_dataset = anda.load_split_datasets(
         dataset_name = cfg.dataset_name,
