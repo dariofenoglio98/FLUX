@@ -8,6 +8,7 @@ n_clients = 10
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 3
 extended_descriptors = True
+weighted_metric_descriptors = True
 # Strategy fedprox
 fedprox_proximal_mu = 0.001
 

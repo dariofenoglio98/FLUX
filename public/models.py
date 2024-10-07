@@ -319,6 +319,17 @@ class ModelEvaluator:
                 accuracy_per_class[class_idx] = -1
                 loss_per_class[class_idx] = -1
                 class_counts[class_idx] = 0
+        
+        # Weighted loss / metric
+        if cfg.weighted_metric_descriptors: # TODO: Not conviced about this, we are flattening a lot of information
+            # Weight the loss / metric by the number of samples in each class
+            loss_per_class = [loss_per_class[i] / class_counts[i] if class_counts[i] > 0 else loss_per_class[i] \
+                                for i in range(num_classes)]
+            accuracy_per_class = [accuracy_per_class[i] / class_counts[i] if class_counts[i] > 0 else accuracy_per_class[i] \
+                                for i in range(num_classes)]
+            
+            print(f"Loss per class: {loss_per_class}")
+            
             
             
         res = {

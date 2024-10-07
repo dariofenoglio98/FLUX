@@ -171,9 +171,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if self.on_fit_config_fn is not None:
             # Custom fit config function provided
             config = self.on_fit_config_fn(server_round)      # Config sent to clients during training 
-            if self.cluster_status > 0:
+            if self.cluster_status == 1:
                 config["extract_descriptors"] = True
-            
+
         # Sample clients
         sample_size, min_num_clients = self.num_fit_clients(
             client_manager.num_available()
