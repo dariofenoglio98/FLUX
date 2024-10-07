@@ -80,17 +80,16 @@ class client_descr_scaling:
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
-            # TODO: not anymore correct
-            loss_pc = client_descr[:, :cfg.n_classes]
-            latent_space = client_descr[:, cfg.n_classes:]
+            metric_pc = client_descr[:, :client_descr.shape[1]//2]
+            latent_space = client_descr[:, client_descr.shape[1]//2:]
             if self.fitted:
-                scaled_loss_pc = self.scaler_metrics.transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                scaled_metric_pc = self.scaler_metrics.transform(metric_pc.reshape(-1, 1)).reshape(metric_pc.shape)  
                 latent_space_pc = self.scaler_latent.transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
             else:
                 self.fitted = True
-                scaled_loss_pc = self.scaler_metrics.fit_transform(loss_pc.reshape(-1, 1)).reshape(loss_pc.shape)  
+                scaled_metric_pc = self.scaler_metrics.fit_transform(metric_pc.reshape(-1, 1)).reshape(metric_pc.shape)  
                 latent_space_pc = self.scaler_latent.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-            return np.hstack((scaled_loss_pc, latent_space_pc))
+            return np.hstack((scaled_metric_pc, latent_space_pc))
         
         elif self.scaling_method == 2:
             # TODO weighted scaling

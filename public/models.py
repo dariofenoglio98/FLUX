@@ -326,10 +326,7 @@ class ModelEvaluator:
             loss_per_class = [loss_per_class[i] / class_counts[i] if class_counts[i] > 0 else loss_per_class[i] \
                                 for i in range(num_classes)]
             accuracy_per_class = [accuracy_per_class[i] / class_counts[i] if class_counts[i] > 0 else accuracy_per_class[i] \
-                                for i in range(num_classes)]
-            
-            print(f"Loss per class: {loss_per_class}")
-            
+                                for i in range(num_classes)]            
             
             
         res = {

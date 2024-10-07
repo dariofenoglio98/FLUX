@@ -8,7 +8,7 @@ n_clients = 10
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 3
 extended_descriptors = True
-weighted_metric_descriptors = True
+weighted_metric_descriptors = False
 # Strategy fedprox
 fedprox_proximal_mu = 0.001
 
@@ -41,7 +41,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 5
+n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
