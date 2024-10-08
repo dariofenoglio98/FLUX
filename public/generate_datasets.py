@@ -42,14 +42,17 @@ if cfg.drifting_type == 'static':
                                 'feature_skew_unbalanced',
                                 'feature_skew_strict',
                                 'label_skew_strict',
+                                'feature_condition_skew_strict',
+                                'label_condition_skew_strict',
     ], "Non-IID type not supported in static mode! Please check the ANDA page for more details."
     anda_dataset = anda.load_split_datasets(
         dataset_name = cfg.dataset_name,
         client_number = cfg.n_clients,
         non_iid_type = cfg.non_iid_type,
         mode = "manual",
-        show_features = cfg.show_features,
-        show_labels = cfg.show_labels,
+        verbose = cfg.verbose,
+        count_labels=cfg.count_labels,
+        plot_clients=cfg.plot_clients,
         random_seed = cfg.random_seed + args.fold,
         **cfg.args
     )
@@ -60,8 +63,9 @@ elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR
         client_number = cfg.n_clients,
         non_iid_type = cfg.non_iid_type,
         drfting_type = cfg.drifting_type,
-        show_features = cfg.show_features,
-        show_labels = cfg.show_labels,
+        verbose = cfg.verbose,
+        count_labels=cfg.count_labels,
+        plot_clients=cfg.plot_clients,
         random_seed = cfg.random_seed + args.fold,
         **cfg.args
     )
