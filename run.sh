@@ -21,11 +21,11 @@ echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
 
 # Single evaluation (k_folds = 1)
 if [ "$k_folds" -eq 1 ]; then
-    # Clean datasets
-    rm -rf data/cur_datasets/*
+    # # Clean datasets
+    # rm -rf data/cur_datasets/*
 
-    # Create new datasets
-    python public/generate_datasets.py
+    # # Create new datasets
+    # python public/generate_datasets.py
 
     # Change to the directory of the strategy
     cd "$strategy"

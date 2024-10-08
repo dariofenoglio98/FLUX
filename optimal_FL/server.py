@@ -110,7 +110,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.path = path # saving model path
 
         self.aggregated_cluster_parameters = {} # [cluster_label] = model parameters
-        self.cluster_labels = {}    # [cid] = cluster_label # TODO
 
     # Override configure_fit method to add custom configuration
     def configure_fit(
@@ -124,8 +123,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         if self.on_fit_config_fn is not None:
             # Custom fit config function provided
             config = self.on_fit_config_fn(server_round)      # Config sent to clients during training 
-            if self.cluster_status > 0:
-                config["extract_descriptors"] = True
             
         # Sample clients
         sample_size, min_num_clients = self.num_fit_clients(
@@ -135,10 +132,15 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             num_clients=sample_size, min_num_clients=min_num_clients
         )
         
-        # Clustered training
-        return [(client,
-                    FitIns(self.aggregated_cluster_parameters[self.cluster_labels[client.cid]], \
-                    config)) for client in clients]
+        # In the first round sent the same model to all clients
+        print(f"\033[93mRound {server_round} - Sending model to {len(clients)} clients\033[0m")
+        if server_round == 1:
+            return [(client, FitIns(parameters, config)) for client in clients]
+        else:
+            # Clustered training
+            return [(client,
+                        FitIns(self.aggregated_cluster_parameters[self.cluster_labels[client.cid]], \
+                        config)) for client in clients]
         
 
 
@@ -170,14 +172,15 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ]
 
         cur_round_cids = [proxy.cid for proxy, _ in results]
+        cur_cluster_labels = [res.metrics['cluster'] for _, res in results]
+        # store cluster labels
+        self.cluster_labels = {cid: cur_cluster_labels[i] for i, cid in enumerate(cur_round_cids)}
         
         # Clustered, update to cluster models
-        # Split aggregation into clusters
-        client_clusters = {i: [] for i in range(self.n_clusters)}
+        n_clusters = max(cur_cluster_labels) + 1
+        client_clusters = {i: [] for i in range(n_clusters)}
         for i in range(cfg.n_clients):
-            cur_cid = cur_round_cids[i]
-            cur_cluster = self.cluster_labels[cur_cid]
-            client_clusters[cur_cluster].append(weights_results[i])
+            client_clusters[cur_cluster_labels[i]].append(weights_results[i])
 
         # Aggregate each cluster
         for cl, param in client_clusters.items():
@@ -291,15 +294,12 @@ def main() -> None:
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
     
-    # read known cluster labels
-    # TODO
     
     # Define strategy
     strategy = SaveModelStrategy(
         # self defined
         model=model,
         path=exp_path,
-        # cluster_labels=cluster_labels, TODO
         # super
         min_fit_clients=cfg.n_clients, # always all training
         min_evaluate_clients=cfg.n_clients, # always all evaluating
@@ -349,7 +349,7 @@ def main() -> None:
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
         # Load respective cluster model
-        known_cluster = 0 # TODO
+        known_cluster = cur_data['cluster'] - 1
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
         cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{known_cluster}.pth", weights_only=False))

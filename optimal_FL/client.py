@@ -35,12 +35,10 @@ class FlowerClient(fl.client.NumPyClient):
         model,
         client_id, 
         device,
-        # cluster TODO
         ):
         self.model = model
         self.client_id = client_id
         self.device = device
-        # self.cluster = cluster TODO
         self.drifting_log = []
 
         # plot
@@ -68,6 +66,8 @@ class FlowerClient(fl.client.NumPyClient):
         cur_features = cur_features.unsqueeze(1) if utils.get_in_channels() == 1 else cur_features
 
         cur_labels = cur_data['train_labels'] if not cfg.training_drifting else cur_data['labels']
+        
+        self.cur_cluster = cur_data['cluster'] - 1
 
         # Split the data into training and testing subsets
         train_features, val_features, train_labels, val_labels = train_test_split(
@@ -96,6 +96,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
         cur_train_loader = self.load_current_data(cur_round, train=True)
+        # print(f"Client {self.client_id} - Cluster {self.cur_cluster} - Model parameters {self.model.fc1.weight[0][0]}")
 
         # Train the model   
         for epoch in range(config["local_epochs"]):
@@ -106,7 +107,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 epoch=epoch,
                                 client_id=self.client_id)
 
-        return self.get_parameters(config), len(cur_train_loader.dataset), {} # {'cluster': self.cluster} TODO
+        return self.get_parameters(config), len(cur_train_loader.dataset), {'cluster': self.cur_cluster} 
     
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
@@ -128,7 +129,8 @@ class FlowerClient(fl.client.NumPyClient):
             "f1_score": float(f1_score_trad),
             "max_latent_space": float(new_max_latent_space),
             "cid": int(self.client_id),
-            "round": int(cur_round)
+            "round": int(cur_round),
+            "cluster": int(self.cur_cluster)
         }
 
 
