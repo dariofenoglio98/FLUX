@@ -81,7 +81,7 @@ class client_descr_scaling:
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
-            metric_pc = client_descr[:, :client_descr.shape[1]//2]
+            metric_pc = client_descr[:, :client_descr.shape[1]//2]   # TODO use classes to split and scale each of them singularly
             latent_space = client_descr[:, client_descr.shape[1]//2:]
             if self.fitted:
                 scaled_metric_pc = self.scaler_metrics.transform(metric_pc.reshape(-1, 1)).reshape(metric_pc.shape)  
@@ -167,6 +167,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         client_manager: ClientManager
     ) -> List[Tuple[ClientProxy, FitIns]]:
         """Configure the next round of training."""
+        
         config = {}
         if self.on_fit_config_fn is not None:
             # Custom fit config function provided
