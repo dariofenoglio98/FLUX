@@ -558,9 +558,21 @@ def main() -> None:
         accuracies.append(accuracy_test)
         losses.append(loss_test)
 
+
     # print average loss and accuracy
     print(f"\n\033[93mAverage Loss: {np.mean(losses):.3f}, Average Accuracy: {np.mean(accuracies)*100:.2f}\033[0m")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
+    
+    # Save metrics as numpy array
+    metrics = {
+        "loss": losses,
+        "accuracy": accuracies,
+        "average_loss": np.mean(losses),
+        "average_accuracy": np.mean(accuracies),
+        "time": round((time.time() - start_time)/60, 2)
+    }
+    np.save(f'results/{exp_path}/test_metrics_fold_{args.fold}.npy', metrics)
+    
     time.sleep(1)
     
 if __name__ == "__main__":

@@ -19,25 +19,28 @@ echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
     Number of rounds: $n_rounds\033[0m\n \
     \033[1;36mK-Folds: $k_folds\033[0m\n"
 
-# Single evaluation (k_folds = 1)
-if [ "$k_folds" -eq 1 ]; then
-    # # Clean datasets
-    # rm -rf data/cur_datasets/*
 
-    # # Create new datasets
-    # python public/generate_datasets.py
+# K-Fold evaluation, if k_folds > 1
+for fold in $(seq 0 $(($k_folds - 1))); do        
+    echo -e "\n\033[1;36mStarting fold $((fold + 1))\033[0m\n"
+
+    # Clean datasets
+    rm -rf data/cur_datasets/* 
+
+    # Create new datasets
+    python public/generate_datasets.py --fold "$fold"
 
     # Change to the directory of the strategy
     cd "$strategy"
 
-    python server.py &
+    python server.py --fold "$fold" &
     # python dynamic_cluster_global_server.py &
     sleep 2  # Sleep for 2s to give the server enough time to start
 
     for i in $(seq 1 $n_clients); do
         echo "Starting client ID $i"
         # python client_dynamic.py --id "$i" &
-        python client.py --id "$i" &
+        python client.py --id "$i" --fold "$fold" &
     done
 
     # This will allow you to use CTRL+C to stop all background processes
@@ -46,51 +49,24 @@ if [ "$k_folds" -eq 1 ]; then
     wait
 
     # Clean up
-    echo "Shutting down - processes completed correctly"
-    trap - SIGTERM && kill -- -$$
+    echo "Fold completed correctly"
+    trap - SIGTERM 
+
+    # Change back to the root directory
+    cd ..
+
+done
 
 
-# K-Fold evaluation
-else 
+# K-Fold evaluation, if k_folds > 1
+if [ "$k_folds" -gt 1 ]; then
 
-    for fold in $(seq 0 $(($k_folds - 1))); do        
-        echo -e "\n\033[1;36mStarting fold $fold\033[0m\n"
-
-        # Clean datasets
-        rm -rf data/cur_datasets/*
-
-        # Create new datasets
-        python public/generate_datasets.py --fold "$fold"
-
-        # Change to the directory of the strategy
-        cd "$strategy"
-
-        python server.py --fold "$fold" &
-        # python dynamic_cluster_global_server.py &
-        sleep 2  # Sleep for 2s to give the server enough time to start
-
-        for i in $(seq 1 $n_clients); do
-            echo "Starting client ID $i"
-            # python client_dynamic.py --id "$i" &
-            python client.py --id "$i" --fold "$fold" &
-        done
-
-        # This will allow you to use CTRL+C to stop all background processes
-        trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
-        # Wait for all background processes to complete
-        wait
-
-        # Clean up
-        echo "Fold completed correctly"
-        trap - SIGTERM && kill -- -$$
-
-        # Change back to the root directory
-        cd ..
-
-    done
-
+    echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
     # Averaging the results of all folds
-    # python public/average_results.py
-
+    python public/average_results.py
 fi
 
+
+echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
+# kill
+trap - SIGTERM && kill -- -$$
