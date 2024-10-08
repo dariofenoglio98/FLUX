@@ -69,28 +69,37 @@ MAX_LATENT_SPACE = 2
 class client_descr_scaling:
     def __init__(self, 
                  scaling_method: int = 1, 
-                 scaler_metrics = None, # MinMaxScaler() or StandardScaler()
-                 scaler_latent = None, # MinMaxScaler() or StandardScaler()
+                 scaler = None, # MinMaxScaler() or StandardScaler()
                  *args,
                  **kwargs):
         self.scaling_method = scaling_method
-        self.scaler_metrics = scaler_metrics
-        self.scaler_latent = scaler_latent
+        self.scaler = scaler
+        self.scalers = None
         self.fitted = False # TODO didn't get it
-        
+
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
-            metric_pc = client_descr[:, :client_descr.shape[1]//2]   # TODO use classes to split and scale each of them singularly
-            latent_space = client_descr[:, client_descr.shape[1]//2:]
+            if self.scalers is None:
+                self.scalers = [copy.deepcopy(self.scaler) for _ in range(len(client_descr)//cfg.n_classes)]
+                
             if self.fitted:
-                scaled_metric_pc = self.scaler_metrics.transform(metric_pc.reshape(-1, 1)).reshape(metric_pc.shape)  
-                latent_space_pc = self.scaler_latent.transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
+                scaled_client_descr = np.zeros(client_descr.shape)
+                for i, scaler in enumerate(self.scalers):
+                    single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
+                    scaled_client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes] = scaler.transform(
+                        single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
+                
             else:
                 self.fitted = True
-                scaled_metric_pc = self.scaler_metrics.fit_transform(metric_pc.reshape(-1, 1)).reshape(metric_pc.shape)  
-                latent_space_pc = self.scaler_latent.fit_transform(latent_space.reshape(-1, 1)).reshape(latent_space.shape)
-            return np.hstack((scaled_metric_pc, latent_space_pc))
+                scaled_client_descr = np.zeros(client_descr.shape)
+                for i, scaler in enumerate(self.scalers):
+                    single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
+                    print(f"Shape  ..... {single_client_descr.shape}")
+                    scaled_client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes] = scaler.fit_transform(
+                        single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
+            
+            return scaled_client_descr
         
         elif self.scaling_method == 2:
             # TODO weighted scaling
@@ -99,6 +108,7 @@ class client_descr_scaling:
         else:
             print("Invalid scaling method!")
             return None 
+
 
 # Config_client
 def fit_config(server_round: int):
@@ -464,8 +474,7 @@ def main() -> None:
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
     descriptors_scaler = client_descr_scaling(scaling_method=cfg.cfl_oneshot_CLIENT_SCALING_METHOD,
-                                              scaler_metrics=MinMaxScaler(),
-                                              scaler_latent=MinMaxScaler()
+                                              scaler=MinMaxScaler(),
                                               )
     
     # Define strategy
