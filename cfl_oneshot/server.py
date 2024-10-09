@@ -95,7 +95,6 @@ class client_descr_scaling:
                 scaled_client_descr = np.zeros(client_descr.shape)
                 for i, scaler in enumerate(self.scalers):
                     single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
-                    print(f"Shape  ..... {single_client_descr.shape}")
                     scaled_client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes] = scaler.fit_transform(
                         single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
             
