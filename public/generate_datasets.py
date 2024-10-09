@@ -76,7 +76,7 @@ else:
 # simple format as training not drifting
 if not cfg.training_drifting:
     for client_number in range(cfg.n_clients):
-        np.save(f'./data/cur_datasets/client_{client_number}', anda_dataset[i])
+        np.save(f'./data/cur_datasets/client_{client_number}', anda_dataset[client_number])
         print(f"Data for client {client_number} saved")
 
 # complex format as training drifting
