@@ -198,7 +198,7 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False):
     plt.figure(figsize=(12, 6))
     for client_id in range(n_clients):
         # Load metrics for each client
-        metrics_path = f"results/{cfg.default_path}/client_{client_id+1}_metrics.npy"
+        metrics_path = f"results/{cfg.default_path}/client_{client_id}_metrics.npy"
         metrics = np.load(metrics_path, allow_pickle=True).item()
         plt.plot(metrics["rounds"], metrics["loss"], label=f'Client {client_id} Loss')
     
@@ -216,7 +216,7 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False):
 
     for client_id in range(n_clients):
         # Load metrics for each client
-        metrics_path = f"results/{cfg.default_path}/client_{client_id+1}_metrics.npy"
+        metrics_path = f"results/{cfg.default_path}/client_{client_id}_metrics.npy"
         metrics = np.load(metrics_path, allow_pickle=True).item()
         plt.plot(metrics["rounds"], metrics["accuracy"], label=f'Client {client_id} Accuracy')
     

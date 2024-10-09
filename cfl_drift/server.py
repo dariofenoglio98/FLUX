@@ -663,7 +663,7 @@ def main() -> None:
     # Pick the indipendent test set from each client
     test_x, test_y = [], []
     for client_id in range(cfg.client_number):
-        data = np.load(f'./data/client_{client_id+1}.npy', allow_pickle=True).item()
+        data = np.load(f'./data/client_{client_id}.npy', allow_pickle=True).item()
         test_x.append(data['test_features'])
         test_y.append(data['test_labels'])
     test_x = np.concatenate(test_x, axis=0)

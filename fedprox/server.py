@@ -196,7 +196,7 @@ def main() -> None:
     for client_id in range(cfg.n_clients):
         test_x, test_y = [], []
         if not cfg.training_drifting:
-            cur_data = np.load(f'../data/cur_datasets/client_{client_id+1}.npy', allow_pickle=True).item()
+            cur_data = np.load(f'../data/cur_datasets/client_{client_id}.npy', allow_pickle=True).item()
             test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
             test_y = cur_data['test_labels']
         else:
@@ -210,7 +210,7 @@ def main() -> None:
 
         # Evaluate on client
         loss_test, accuracy_test = models.simple_test(model, device, test_loader)
-        print(f"\033[93mClient {client_id+1} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
+        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f}\033[0m")
         accuracies.append(accuracy_test)
         losses.append(loss_test)
     

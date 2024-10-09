@@ -50,7 +50,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         if cfg.training_drifting:
             drifting_log = np.load(f'../data/cur_datasets/drifting_log.npy', allow_pickle=True).item()
-            self.drifting_log = drifting_log[self.client_id-1]
+            self.drifting_log = drifting_log[self.client_id]
 
     def load_current_data(self,
                           cur_round,
@@ -60,7 +60,7 @@ class FlowerClient(fl.client.NumPyClient):
             cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}.npy', allow_pickle=True).item()
         else:
             load_index = max([index for index in self.drifting_log if index <= cur_round], default=0)
-            cur_data = np.load(f'../data/cur_datasets/client_{self.client_id-1}_round_{load_index}.npy', allow_pickle=True).item()
+            cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}_round_{load_index}.npy', allow_pickle=True).item()
 
         cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
         cur_features = cur_features.unsqueeze(1) if utils.get_in_channels() == 1 else cur_features
@@ -135,7 +135,7 @@ def main() -> None:
     parser.add_argument(
         "--id",
         type=int,
-        choices=range(1, cfg.n_clients+1),
+        choices=range(0, cfg.n_clients),
         required=True,
         help="Specifies the artificial data partition",
     )

@@ -16,10 +16,10 @@ fedprox_proximal_mu = 0.001
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'label_skew' # refer to ANDA page for more details
+non_iid_type = 'feature_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
-plot_clients = True
+plot_clients = False
 # careful with the args applying to your settings above
 args = {
     # 'set_color': True,
@@ -31,7 +31,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 5
+n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9

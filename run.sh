@@ -30,8 +30,6 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # Create new datasets
     python public/generate_datasets.py --fold "$fold"
 
-    exit
-
     # Change to the directory of the strategy
     cd "$strategy"
 
@@ -39,7 +37,7 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # python dynamic_cluster_global_server.py &
     sleep 2  # Sleep for 2s to give the server enough time to start
 
-    for i in $(seq 1 $n_clients); do
+    for i in $(seq 0 $(($n_clients - 1))); do
         echo "Starting client ID $i"
         # python client_dynamic.py --id "$i" &
         python client.py --id "$i" --fold "$fold" &
