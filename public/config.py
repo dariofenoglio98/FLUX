@@ -1,5 +1,5 @@
 # Overall settings
-k_folds = 3 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU
@@ -16,14 +16,14 @@ fedprox_proximal_mu = 0.001
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
-verbose = False
-count_labels = False
-plot_clients = False
+non_iid_type = 'label_skew' # refer to ANDA page for more details
+verbose = True
+count_labels = True
+plot_clients = True
 # careful with the args applying to your settings above
 args = {
-    'set_color': True,
-    'colors': 3,
+    # 'set_color': True,
+    # 'colors': 3,
 }
 
 # Training model settings

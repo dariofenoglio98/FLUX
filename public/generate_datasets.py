@@ -72,17 +72,12 @@ elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR
 else:
     raise ValueError("Drifting type not found! Please check the ANDA page for more details.")
 
-# quick check the dataset
-# for dataset in anda_dataset:
-#     print(f"train shape: {dataset['train_features'].shape}, {dataset['train_labels'].shape}")
-#     print(f"test shape: {dataset['test_features'].shape}, {dataset['test_labels'].shape}")
-
 # Save anda_dataset
 # simple format as training not drifting
 if not cfg.training_drifting:
-    for i in range(cfg.n_clients):
-        np.save(f'./data/cur_datasets/client_{i+1}', anda_dataset[i])
-        print(f"Data for client {i+1} saved")
+    for client_number in range(cfg.n_clients):
+        np.save(f'./data/cur_datasets/client_{client_number}', anda_dataset[i])
+        print(f"Data for client {client_number} saved")
 
 # complex format as training drifting
 else:
@@ -94,7 +89,7 @@ else:
         # save data file      
         filename = f'./data/cur_datasets/client_{client_number}_round_{cur_drifting_round}.npy'
         np.save(filename, dataset)
-        print(f"Data client {client_number} round {cur_drifting_round} saved!")
+        print(f"Data for client {client_number} round {cur_drifting_round} saved")
 
         # log drifting round info
         if client_number not in drifting_log:
@@ -102,6 +97,7 @@ else:
         drifting_log[client_number].append(cur_drifting_round)
 
     # print(", ".join(f"{key}: {value}" for key, value in drifting_log.items()))
+
     # save log file
     np.save(f'./data/cur_datasets/drifting_log.npy', drifting_log)
 

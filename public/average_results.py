@@ -32,7 +32,7 @@ metrics = []
 for i in range(cfg.k_folds):
     # Load metrics
     metrics.append(
-        np.load(f'{cfg.strategy}/results/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/test_metrics_fold_{i}.npy',
+        np.load(f'{cfg.strategy}/results/{cfg.default_path}/test_metrics_fold_{i}.npy',
                 allow_pickle=True
                 ).item()
         )
@@ -41,6 +41,6 @@ for i in range(cfg.k_folds):
 result = calculate_mean_std_metrics(metrics)
 
 # Save the mean metrics to a file
-np.save(f'{cfg.strategy}/results/{cfg.random_seed}/{cfg.model_name}/{cfg.dataset_name}/{cfg.drifting_type}/mean_std_test_metrics.npy', result)
+np.save(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics.npy', result)
 
 

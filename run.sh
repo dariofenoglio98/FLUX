@@ -30,6 +30,8 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # Create new datasets
     python public/generate_datasets.py --fold "$fold"
 
+    exit
+
     # Change to the directory of the strategy
     cd "$strategy"
 
@@ -56,7 +58,6 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     cd ..
 
 done
-
 
 # K-Fold evaluation, if k_folds > 1
 if [ "$k_folds" -gt 1 ]; then
