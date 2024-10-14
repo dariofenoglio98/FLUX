@@ -24,13 +24,10 @@ echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
 for fold in $(seq 0 $(($k_folds - 1))); do        
     echo -e "\n\033[1;36mStarting fold $((fold + 1))\033[0m\n"
 
-    # Clean datasets
+    # Clean and create datasets
     rm -rf data/cur_datasets/* 
-
-    # Create new datasets
     python public/generate_datasets.py --fold "$fold"
 
-    # Change to the directory of the strategy
     cd "$strategy"
 
     python server.py --fold "$fold" &

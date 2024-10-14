@@ -7,9 +7,9 @@ n_clients = 10
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
-cfl_oneshot_CLIENT_CLUSTER_METHOD = 3
+cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
 extended_descriptors = True
-weighted_metric_descriptors = False
+weighted_metric_descriptors = False # TODO ?
 # Strategy fedprox
 fedprox_proximal_mu = 0.001
 

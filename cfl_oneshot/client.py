@@ -141,18 +141,10 @@ class FlowerClient(fl.client.NumPyClient):
 def main() -> None:
     # Get client id
     parser = argparse.ArgumentParser(description="Flower")
-    parser.add_argument(
-        "--id",
-        type=int,
-        choices=range(0, cfg.n_clients),
-        required=True,
+    parser.add_argument("--id", type=int, choices=range(0, cfg.n_clients), required=True,
         help="Specifies the artificial data partition",
     )
-    parser.add_argument(
-        "--fold",
-        type=int,
-        required=False,
-        default=0,
+    parser.add_argument("--fold", type=int, required=False, default=0,
         help="Specifies the fold number of the cross-validation",
     )
     args = parser.parse_args()

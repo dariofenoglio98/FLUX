@@ -269,7 +269,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr)
                 if min(cluster_labels) < 0: # -1 is for outliers
-                    cluster_labels = cluster_labels + abs(min(cluster_labels))
+                    cluster_labels = cluster_labels + abs(min(cluster_labels)) # TODO wrong, outliers are not the same cluster
                 # Calculate and save centroids
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
@@ -284,6 +284,18 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Calculate and save centroids
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
+
+            # DBSCAN_no_outliers
+            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 4:
+                eps = 0.1
+                while True:
+                    clustering = DBSCAN(eps=eps, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
+                    cluster_labels = clustering.fit_predict(client_descr)
+                    if min(cluster_labels) != -1: # no outliers now
+                        break
+                    eps += 0.1 # increase eps as boundaries
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             else:
                 print("Invalid clustering method!")
