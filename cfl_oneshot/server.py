@@ -520,10 +520,10 @@ def main() -> None:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
     # Plot client training loss and accuracy
-    utils.plot_all_clients_metrics()
+    utils.plot_all_clients_metrics(fold=args.fold)
 
     # Plots and Evaluation the model on the client datasets
-    best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)
+    best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False, fold=args.fold)
     
     # Read cluster centroids from json
     cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()

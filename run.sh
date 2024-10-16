@@ -48,6 +48,7 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # Clean up
     echo "Fold completed correctly"
     trap - SIGTERM 
+    pkill -u dario -f client.py
 
     # Change back to the root directory
     cd ..

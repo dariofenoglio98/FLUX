@@ -150,7 +150,7 @@ def main() -> None:
 
     # Load device, model and data
     utils.set_seed(cfg.random_seed + args.fold)
-    device = utils.check_gpu()
+    device = utils.check_gpu(client_id=args.id)
     in_channels = utils.get_in_channels()
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)

@@ -16,12 +16,17 @@ def create_folders():
     return cfg.default_path
 
 # define device
-def check_gpu():
+def check_gpu(client_id:int = 0):
     torch.manual_seed(cfg.random_seed)
     if cfg.gpu == -1:
         device = 'cpu'
     elif torch.cuda.is_available():
-        device = 'cuda:' + str(cfg.gpu)
+        if cfg.gpu == -2: # multiple gpu
+            # assert client_id >=0, "client_id must be passed to select the respective GPU"
+            n_total_gpus = torch.cuda.device_count()
+            device = 'cuda:' + str(int(client_id % n_total_gpus))
+        else:
+            device = 'cuda:' + str(cfg.gpu)
         torch.cuda.manual_seed_all(cfg.random_seed) 
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -35,7 +40,8 @@ def check_gpu():
 def plot_loss_and_accuracy(
         loss: List[float],
         accuracy: List[float],
-        show: bool = True):
+        show: bool = True,
+        fold=0):
     
     # # Plot loss separately
     plt.figure(figsize=(12, 6))
@@ -50,7 +56,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the loss plot
-    loss_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png"
+    loss_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(loss_plot_path)
     if show:
         plt.show()
@@ -68,7 +74,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the accuracy plot
-    accuracy_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}.png"
+    accuracy_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(accuracy_plot_path)
     if show:
         plt.show()
@@ -179,8 +185,8 @@ def calculate_centroids(data: np.ndarray,
         centroids = clustering_method.cluster_centers_
         centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
     
-    # DBSCAN and HDBSCAN
-    elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD in [2, 3]:
+    # DBSCAN and HDBSCAN, DBSCAN_no_outliers
+    elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD in [2, 3, 4]:
         centroids_dict = {}
         for label in np.unique(cluster_labels):
             cluster_points = data[cluster_labels == label]
@@ -193,7 +199,7 @@ def calculate_centroids(data: np.ndarray,
     
     return centroids_dict
 
-def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False):
+def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fold=""):
     # Loss
     plt.figure(figsize=(12, 6))
     for client_id in range(n_clients):
@@ -208,7 +214,7 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False):
     plt.legend()
 
     if save:
-        plt.savefig(f"images/{cfg.default_path}/all_clients_loss.png")
+        plt.savefig(f"images/{cfg.default_path}/all_clients_loss_fold_{fold}.png")
     if show:
         plt.show()
 
@@ -226,6 +232,6 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False):
     plt.legend()
 
     if save:
-        plt.savefig(f"images/{cfg.default_path}/all_clients_accuracy.png")
+        plt.savefig(f"images/{cfg.default_path}/all_clients_accuracy_fold_{fold}.png")
     if show:
         plt.show()

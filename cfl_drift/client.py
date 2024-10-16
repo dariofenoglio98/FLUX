@@ -196,7 +196,7 @@ def main()->None:
     utils.set_seed(cfg.random_seed + args.fold)
 
     # check gpu and set manual seed
-    device = utils.check_gpu(manual_seed=True)
+    device = utils.check_gpu(manual_seed=True, client_id=args.id)
 
     # model and history folder
     model = models.models[cfg.model_name](in_channels=3, num_classes=cfg.n_classes, input_size=cfg.input_size).to(device)
