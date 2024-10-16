@@ -1,10 +1,13 @@
 import numpy as np
+import pandas as pd
 import config as cfg
 
 
 def calculate_mean_std_metrics(metrics):
     # Initialize a dictionary to hold the means of all keys
     mean_std_metrics = {}
+    n_clients = len(metrics[0]['loss'])
+    mean_std_metrics['-'] = [f"Client {i}" for i in range(n_clients)]
 
     # Extract the keys from the first entry in the metrics list
     keys = metrics[0].keys()
@@ -15,14 +18,14 @@ def calculate_mean_std_metrics(metrics):
             # Compute the mean for each element across all entries for this key
             mean_value = np.mean([metric[key] for metric in metrics], axis=0).tolist()
             std_value = np.std([metric[key] for metric in metrics], axis=0).tolist()
+            mean_std_metrics[f'{key}_mean'] = mean_value
+            mean_std_metrics[f'{key}_std'] = std_value
         else:
             # Compute the mean for the scalar values across all entries for this key
             mean_value = np.mean([metric[key] for metric in metrics])
             std_value = np.std([metric[key] for metric in metrics])
-        
-        # Store the computed mean in the mean_metrics dictionary with the '_mean' suffix
-        mean_std_metrics[f'{key}_mean'] = mean_value
-        mean_std_metrics[f'{key}_std'] = std_value
+            mean_std_metrics[f'{key}_mean'] = [mean_value] + [None]*(n_clients-1)
+            mean_std_metrics[f'{key}_std'] = [std_value] + [None]*(n_clients-1)
         
     return mean_std_metrics
 
@@ -41,6 +44,7 @@ for i in range(cfg.k_folds):
 result = calculate_mean_std_metrics(metrics)
 
 # Save the mean metrics to a file
-np.save(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics.npy', result)
+result_pd = pd.DataFrame(result)
+result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics.xlsx', index=False)
 
 
