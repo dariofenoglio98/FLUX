@@ -141,7 +141,7 @@ def main() -> None:
     parser.add_argument(
         "--id",
         type=int,
-        choices=range(1, cfg.n_clients+1),
+        choices=range(0, cfg.n_clients),
         required=True,
         help="Specifies the artificial data partition",
     )
