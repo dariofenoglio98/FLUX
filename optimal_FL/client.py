@@ -67,7 +67,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         cur_labels = cur_data['train_labels'] if not cfg.training_drifting else cur_data['labels']
         
-        self.cur_cluster = cur_data['cluster'] - 1
+        self.cur_cluster = cur_data['cluster']
 
         # Split the data into training and testing subsets
         train_features, val_features, train_labels, val_labels = train_test_split(

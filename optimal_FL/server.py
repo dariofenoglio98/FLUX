@@ -178,7 +178,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Clustered, update to cluster models
         n_clusters = max(cur_cluster_labels) + 1
-        client_clusters = {i: [] for i in range(n_clusters)}
+        # client_clusters = {i: [] for i in range(n_clusters)}
+        print(f"Unique clusters: {np.unique(cur_cluster_labels)}")
+        client_clusters = {i: [] for i in np.unique(cur_cluster_labels)}
         for i in range(cfg.n_clients):
             client_clusters[cur_cluster_labels[i]].append(weights_results[i])
 
@@ -349,7 +351,7 @@ def main() -> None:
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
 
         # Load respective cluster model
-        known_cluster = cur_data['cluster'] - 1
+        known_cluster = cur_data['cluster'] 
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
         cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{known_cluster}.pth", weights_only=False))

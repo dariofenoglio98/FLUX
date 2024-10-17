@@ -1,6 +1,5 @@
 # ANDA interface
 
-
 import config as cfg
 
 import numpy as np
