@@ -505,7 +505,7 @@ def main() -> None:
 
     # Start Flower server for three rounds of federated learning
     history = fl.server.start_server(
-        server_address="0.0.0.0:8098",   # 0.0.0.0 listens to all available interfaces
+        server_address=f"{cfg.ip}:{cfg.port}",   # 0.0.0.0 listens to all available interfaces
         config=fl.server.ServerConfig(num_rounds=cfg.n_rounds),
         strategy=strategy,
     )

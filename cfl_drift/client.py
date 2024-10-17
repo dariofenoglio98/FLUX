@@ -235,7 +235,7 @@ def main()->None:
     # Start Flower client
     client = FlowerClient(model, train_loader, val_loader, optimizer, num_examples, args.id, 
                            models.simple_train, device).to_client()
-    fl.client.start_client(server_address="[::]:8098", client=client) # local host
+    fl.client.start_client(server_address=f"{cfg.ip}:{cfg.port}", client=client) # local host
 
     # read saved data and plot
     # plot_fn(args.id, show=False)

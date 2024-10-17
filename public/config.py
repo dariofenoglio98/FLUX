@@ -1,5 +1,5 @@
 # Overall settings
-k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = 1 # set the GPU to use, if -1 use CPU, -2 for multigpus
@@ -33,11 +33,10 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 50
+n_rounds = 5
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
-
 
 
 # self-defined settings
@@ -66,3 +65,7 @@ acceptable_accuracy = {
 th_accuracy = acceptable_accuracy[dataset_name]
 training_drifting = False if drifting_type in ['static', 'trND_teDR'] else True # to be identified
 default_path = f"{random_seed}/{model_name}/{dataset_name}/{drifting_type}"
+
+# FL settings - Communications
+port = '8098'
+ip = '0.0.0.0' # Local Host=0.0.0.0, or IP address of the server

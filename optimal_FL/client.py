@@ -167,7 +167,7 @@ def main() -> None:
                           device=device
                           ).to_client()
     
-    fl.client.start_client(server_address="[::]:8098", client=client) # local host
+    fl.client.start_client(server_address=f"{cfg.ip}:{cfg.port}", client=client) # local host
 
 if __name__ == "__main__":
     main()
