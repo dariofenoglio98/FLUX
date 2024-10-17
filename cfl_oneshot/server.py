@@ -457,7 +457,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         # Cluster requirements check
         if self.cluster_status == 0:
             # is this good? back to the question: when to cluster?
-            if metrics_aggregated["accuracy"] >= cfg.th_accuracy:
+            if metrics_aggregated["accuracy"] >= 100: # >= cfg.th_accuracy:
                 self.cluster_status = 1
             # must-to cluster
             elif server_round > 3:
@@ -527,6 +527,8 @@ def main() -> None:
     
     # Read cluster centroids from json
     cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    cluster_centroids = {label: centroid[:len(centroid)//2] for label, centroid in cluster_centroids.items()}
+    print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
@@ -554,6 +556,7 @@ def main() -> None:
         descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
                                                     model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
         descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+        descriptors = descriptors[:,:descriptors.shape[1]//2]
         
         # Find the closest cluster centroid
         closest_centroid = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))

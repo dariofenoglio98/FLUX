@@ -182,7 +182,7 @@ def main() -> None:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
     # Plot client training loss and accuracy
-    utils.plot_all_clients_metrics()
+    utils.plot_all_clients_metrics(fold=args.fold)
 
     # Plots and Evaluation the model on the client datasets, (averaged)
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False)

@@ -213,7 +213,11 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fol
     plt.title('Loss per Round for All Clients')
     plt.legend()
 
+    print(f"Saving loss plot for all clients OUTSIDE...")
+
     if save:
+        print(f"Saving loss plot for all clients...")
+        print(f"images/{cfg.default_path}/all_clients_loss_fold_{fold}.png")
         plt.savefig(f"images/{cfg.default_path}/all_clients_loss_fold_{fold}.png")
     if show:
         plt.show()
