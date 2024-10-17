@@ -1,9 +1,9 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'optimal_FL' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
-n_clients = 20
+n_clients = 10
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
@@ -16,21 +16,25 @@ fedprox_proximal_mu = 0.1
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_skew' # refer to ANDA page for more details
+non_iid_type = 'label_skew_strict' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
 # careful with the args applying to your settings above
 args = {
-    'set_rotation': True,
-    'set_color': True,
-    'rotations':2,
-    'colors':3,
-    'scaling_rotation_low':0.0,
-    'scaling_rotation_high':0.0,
-    'scaling_color_low':0.0,
-    'scaling_color_high':0.0,
-    'random_order':True
+    # 'set_rotation': True,
+    # 'set_color': True,
+    # 'rotations':2,
+    # 'colors':3,
+    # 'scaling_rotation_low':0.0,
+    # 'scaling_rotation_high':0.0,
+    # 'scaling_color_low':0.0,
+    # 'scaling_color_high':0.0,
+    # 'random_order':True
+    
+    'client_n_class': 2,
+    'py_bank': 3,
+    
 }
 
 # Training model settings
@@ -38,7 +42,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 50
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
