@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import config as cfg
 
@@ -39,6 +40,10 @@ for i in range(cfg.k_folds):
                 allow_pickle=True
                 ).item()
         )
+
+# Delete files
+for i in range(cfg.k_folds):
+    os.remove(f'{cfg.strategy}/results/{cfg.default_path}/test_metrics_fold_{i}.npy')
 
 # Calculate the mean metrics
 result = calculate_mean_std_metrics(metrics)
