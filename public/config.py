@@ -1,6 +1,6 @@
 # Overall settings
-k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+k_folds = 2 # number of folds for cross-validation, if 1, no cross-validation
+strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
@@ -10,6 +10,7 @@ cfl_oneshot_CLIENT_SCALING_METHOD = 1
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 3 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
 extended_descriptors = True
 weighted_metric_descriptors = False
+check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting), False otherwise (like baselines)
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
@@ -38,7 +39,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 50
+n_rounds = 7
 local_epochs = 2
 lr = 0.005
 momentum = 0.9

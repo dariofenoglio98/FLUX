@@ -303,7 +303,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Update results and assign clusters
             self.n_clusters = max(cluster_labels) + 1
             self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
-
+            if not cfg.check_cluster_at_inference:
+                cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
+                np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
+            
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
 
         ################################################################################
@@ -526,9 +529,13 @@ def main() -> None:
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False, fold=args.fold)
     
     # Read cluster centroids from json
-    cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-    cluster_centroids = {label: centroid[:len(centroid)//2] for label, centroid in cluster_centroids.items()}
-    print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m")
+    if cfg.check_cluster_at_inference:
+        cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+        cluster_centroids = {label: centroid[:len(centroid)//2] for label, centroid in cluster_centroids.items()}
+        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m")
+    else:
+        cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+        print(f"\033[93mRead cluster assignement during training for inference\033[0m")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
@@ -552,23 +559,26 @@ def main() -> None:
         test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
     
-        # Extract descriptors, scaling
-        descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
-                                                    model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
-        descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-        descriptors = descriptors[:,:descriptors.shape[1]//2]
-        
-        # Find the closest cluster centroid
-        closest_centroid = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
+        if cfg.check_cluster_at_inference:
+            # Extract descriptors, scaling
+            descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
+                                                        model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
+            descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+            descriptors = descriptors[:,:descriptors.shape[1]//2]
+            
+            # Find the closest cluster centroid
+            client_cluster = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
+        else:
+            client_cluster = cluster_labels_inference[client_id]
 
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
-                                          input_size=cfg.input_size).to(device)
-        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{closest_centroid}.pth", weights_only=False))
+                                        input_size=cfg.input_size).to(device)
+        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
         
         # Evaluate
         loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)
-        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f} - Closest centroid {closest_centroid}\033[0m")
+        print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f} - Closest centroid {client_cluster}\033[0m")
         accuracies.append(accuracy_test)
         losses.append(loss_test)
 
