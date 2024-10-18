@@ -10,7 +10,7 @@ cfl_oneshot_CLIENT_SCALING_METHOD = 1
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 3 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
 extended_descriptors = True
 weighted_metric_descriptors = False
-check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting), False otherwise (like baselines)
+check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
