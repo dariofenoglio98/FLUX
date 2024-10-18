@@ -28,6 +28,8 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     rm -rf data/cur_datasets/* 
     python public/generate_datasets.py --fold "$fold"
 
+    # exit
+
     cd "$strategy"
 
     python server.py --fold "$fold" &
