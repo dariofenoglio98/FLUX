@@ -64,6 +64,8 @@ MAX_LATENT_SPACE = 2
 # TODO DARIO
 # WHAT IF: we introduced latent space descriptors per class, i.e., selecting only one class, calculating the mean latent
 # space on it, reducing dim, and then same for others. Creating something like [metrics, latent_class1, latent_class2..]
+
+    
     
 # client_descr_scaled
 class client_descr_scaling:
@@ -81,7 +83,7 @@ class client_descr_scaling:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
             if self.scalers is None:
-                self.scalers = [copy.deepcopy(self.scaler) for _ in range(len(client_descr)//cfg.n_classes)]
+                self.scalers = [copy.deepcopy(self.scaler) for _ in range(client_descr.shape[1]//cfg.n_classes)]
                 
             if self.fitted:
                 scaled_client_descr = np.zeros(client_descr.shape)
@@ -109,6 +111,7 @@ class client_descr_scaling:
             return None 
 
 
+
 # Config_client
 def fit_config(server_round: int):
     """Return training configuration dict for each round."""
@@ -122,6 +125,8 @@ def fit_config(server_round: int):
     }
     return config
 
+
+
 # Custom weighted average function
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     # Multiply accuracy of each client by number of examples used
@@ -131,11 +136,15 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
 
+
+
 def weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
     """Aggregate evaluation results obtained from multiple clients."""
     num_total_evaluation_examples = sum([num_examples for num_examples, _ in results])
     weighted_losses = [num_examples * loss for num_examples, loss in results]
     return sum(weighted_losses) / num_total_evaluation_examples
+
+
 
 def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     """Compute weighted average."""
@@ -154,6 +163,8 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     ]
     return weights_prime
 
+
+
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
     def __init__(self, model, path, descriptors_scaler, *args, **kwargs):
@@ -167,6 +178,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.aggregated_parameters_global = None
         self.cluster_status = 0 # 0: not started, 1: to cluster, 2: done
         self.n_clusters = 1 # current number of clusters
+
 
     # Override configure_fit method to add custom configuration
     def configure_fit(
@@ -380,6 +392,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         return self.aggregated_parameters_global, aggregated_metrics
    
+   
     # Override configure_evaluate method to add custom configuration
     def configure_evaluate(
         self, 
@@ -470,8 +483,22 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             print(f"\033[93mRound {server_round} - Will be clustering next round\033[0m") \
                 if self.cluster_status == 1 else None
 
-
         return loss_aggregated, metrics_aggregated
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Main
 def main() -> None:
@@ -531,11 +558,11 @@ def main() -> None:
     # Read cluster centroids from json
     if cfg.check_cluster_at_inference:
         cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-        cluster_centroids = {label: centroid[:len(centroid)//2] for label, centroid in cluster_centroids.items()}
-        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m")
+        cluster_centroids = {label: centroid[len(centroid)//2:] for label, centroid in cluster_centroids.items()}
+        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
     else:
         cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-        print(f"\033[93mRead cluster assignement during training for inference\033[0m")
+        print(f"\033[93mRead cluster assignement during training for inference\033[0m\n")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
@@ -564,7 +591,7 @@ def main() -> None:
             descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
                                                         model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
             descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-            descriptors = descriptors[:,:descriptors.shape[1]//2]
+            descriptors = descriptors[:,descriptors.shape[1]//2:] # only latent space            
             
             # Find the closest cluster centroid
             client_cluster = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))

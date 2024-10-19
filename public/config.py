@@ -1,5 +1,5 @@
 # Overall settings
-k_folds = 2 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
