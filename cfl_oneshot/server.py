@@ -236,17 +236,42 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             client_descr, client_id_plot, client_cid_list  = [], [], []
             for proxy, res in results:
                 if cfg.extended_descriptors:
-                    client_descr.append(json.loads(res.metrics["loss_pc"]) + \
-                                        json.loads(res.metrics["accuracy_pc"]) + \
-                                        json.loads(res.metrics["latent_space_mean"]) + \
-                                        json.loads(res.metrics["latent_space_std"]))
-                else:
-                    client_descr.append(json.loads(res.metrics["loss_pc"]) + \
-                                        json.loads(res.metrics["latent_space_mean"]))
+                    if cfg.selected_descriptors == "Pxy":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Pxy descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                                            json.loads(res.metrics["accuracy_pc"]) + \
+                                            json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]))
+                    elif cfg.selected_descriptors == "Py":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Py descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                                            json.loads(res.metrics["accuracy_pc"]))
+                    elif cfg.selected_descriptors == "Px":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Px descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]))
+                else:    
+                    if cfg.selected_descriptors == "Pxy":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Pxy descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                                            json.loads(res.metrics["latent_space_mean"]))
+                    elif cfg.selected_descriptors == "Py":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Py descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["loss_pc"]))
+                    elif cfg.selected_descriptors == "Px":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Px descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]))
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
             
             # scaling
+            print(f"\033[91mRound {server_round} - Client descriptors {client_descr}\033[0m")
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
             
             # Apply PCA to reduce the data to 2D for visualization
@@ -558,11 +583,22 @@ def main() -> None:
     # Read cluster centroids from json
     if cfg.check_cluster_at_inference:
         cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-        cluster_centroids = {label: centroid[len(centroid)//2:] for label, centroid in cluster_centroids.items()}
-        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
+        if cfg.selected_descriptors == "Pxy":
+            cluster_centroids = {label: centroid[len(centroid)//2:] for label, centroid in cluster_centroids.items()} # only latent space
+            print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
+        elif cfg.selected_descriptors == "Px":
+            print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
+        elif cfg.selected_descriptors == "Py":
+            # print in red color
+            print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
+            cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+            print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
+        else:
+            raise ValueError("Invalid selected_descriptors")
     else:
         cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
         print(f"\033[93mRead cluster assignement during training for inference\033[0m\n")
+        print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
@@ -586,7 +622,7 @@ def main() -> None:
         test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
     
-        if cfg.check_cluster_at_inference:
+        if cfg.check_cluster_at_inference and cfg.selected_descriptors != "Py":
             # Extract descriptors, scaling
             descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
                                                         model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
