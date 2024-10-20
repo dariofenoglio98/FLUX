@@ -275,7 +275,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             
             # scaling
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
-            print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
+            # print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
