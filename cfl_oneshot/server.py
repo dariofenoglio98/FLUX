@@ -77,15 +77,18 @@ class client_descr_scaling:
         self.scaling_method = scaling_method
         self.scaler = scaler
         self.scalers = None
-        self.fitted = False # TODO didn't get it
+        self.fitted = False 
 
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
         if self.scaling_method == 1:
             if self.scalers is None:
                 self.scalers = [copy.deepcopy(self.scaler) for _ in range(client_descr.shape[1]//cfg.n_classes)]
-                
+                self.dim = client_descr.shape[1]
+             
             if self.fitted:
+                if client_descr.shape[1] != self.dim:
+                    raise ValueError("Client descriptors dimension mismatch!")
                 scaled_client_descr = np.zeros(client_descr.shape)
                 for i, scaler in enumerate(self.scalers):
                     single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
@@ -271,8 +274,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 client_cid_list.append(proxy.cid)
             
             # scaling
-            print(f"\033[91mRound {server_round} - Client descriptors {client_descr}\033[0m")
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
+            print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
@@ -340,7 +343,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Update results and assign clusters
             self.n_clusters = max(cluster_labels) + 1
             self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
-            if not cfg.check_cluster_at_inference:
+            if not cfg.check_cluster_at_inference or cfg.selected_descriptors == "Py":
                 cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
                 np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
@@ -626,9 +629,16 @@ def main() -> None:
             # Extract descriptors, scaling
             descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
                                                         model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
-            descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-            descriptors = descriptors[:,descriptors.shape[1]//2:] # only latent space            
             
+            if cfg.selected_descriptors == "Pxy":
+                descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+                descriptors = descriptors[:, descriptors.shape[1]//2:] # only latent space   
+            elif cfg.selected_descriptors == "Px":
+                descriptors = descriptors[len(descriptors)//2:] # only latent space   
+                descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+            else:
+                raise ValueError("Invalid selected_descriptors")
+           
             # Find the closest cluster centroid
             client_cluster = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
         else:

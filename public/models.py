@@ -339,7 +339,7 @@ class ModelEvaluator:
             "accuracy_pc": json.dumps(accuracy_per_class),
             "loss_pc": json.dumps(loss_per_class),
             "latent_space_mean": json.dumps(latent_mean),
-            "latent_space_std": json.dumps(latent_mean),
+            "latent_space_std": json.dumps(latent_std),
             "max_latent_space": float(new_max_latent_space),
             "class_counts": json.dumps(class_counts),
             "cid": int(client_id)
