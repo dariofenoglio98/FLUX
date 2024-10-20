@@ -1,6 +1,6 @@
 # Overall settings
 k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
@@ -11,7 +11,7 @@ cfl_oneshot_CLIENT_CLUSTER_METHOD = 3 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_
 extended_descriptors = True
 weighted_metric_descriptors = False
 selected_descriptors = "Pxy" # Options: "Px", "Py", "Pxy" for training time
-check_cluster_at_inference = False  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
+check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
