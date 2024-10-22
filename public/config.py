@@ -3,7 +3,7 @@ k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
-n_clients = 10
+n_clients = 3
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
@@ -12,6 +12,7 @@ extended_descriptors = True
 weighted_metric_descriptors = False
 selected_descriptors = "Pxy" # Options: "Px", "Py", "Pxy" for training time
 check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
+
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
@@ -79,3 +80,9 @@ default_path = f"{random_seed}/{model_name}/{dataset_name}/{drifting_type}"
 # FL settings - Communications
 port = '8098'
 ip = '0.0.0.0' # Local Host=0.0.0.0, or IP address of the server
+
+# Advance One-shot settings
+len_metric_descriptor =  n_classes
+n_metrics_descriptors = 2
+len_latent_space_descriptor = 2 * len_metric_descriptor
+n_latent_space_descriptors = 2

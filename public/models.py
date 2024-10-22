@@ -276,7 +276,7 @@ class ModelEvaluator:
         # create random_points to fit PCA (min=0, max=max_latent_space)
         np.random.seed(seed=1)
         random_points = np.random.uniform(0, max_latent_space, size=(200, latent_all.shape[1]))
-        pca = PCA(n_components=num_classes)
+        pca = PCA(n_components=cfg.len_latent_space_descriptor)   # MODIFIED
         # fit PCA on random_points
         pca.fit(random_points)
         # transform latent_all
@@ -421,7 +421,7 @@ class ModelEvaluator:
         # create random_points to fit PCA (min=0, max=max_latent_space)
         np.random.seed(seed=1)
         random_points = np.random.uniform(0, max_latent_space, size=(200, latent_all.shape[1]))
-        pca = PCA(n_components=num_classes)
+        pca = PCA(n_components=cfg.len_latent_space_descriptor)   # MODIFIED
         # fit PCA on random_points
         pca.fit(random_points)
         # transform latent_all

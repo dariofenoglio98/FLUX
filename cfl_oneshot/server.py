@@ -78,6 +78,7 @@ class client_descr_scaling:
         self.scaler = scaler
         self.scalers = None
         self.fitted = False 
+        self.descriptors_dim = [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors + [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors
 
     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
         # Normalize by group of descriptors
@@ -90,19 +91,24 @@ class client_descr_scaling:
                 if client_descr.shape[1] != self.dim:
                     raise ValueError("Client descriptors dimension mismatch!")
                 scaled_client_descr = np.zeros(client_descr.shape)
-                for i, scaler in enumerate(self.scalers):
-                    single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
-                    scaled_client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes] = scaler.transform(
+                start_idx = 0
+                for i, (scaler, descr_dim) in enumerate(zip(self.scalers, self.descriptors_dim)):
+                    end_idx = start_idx + descr_dim
+                    single_client_descr = client_descr[:, start_idx:end_idx]
+                    scaled_client_descr[:, start_idx:end_idx] = scaler.transform(
                         single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
-                
+                    start_idx = end_idx
             else:
                 self.fitted = True
                 scaled_client_descr = np.zeros(client_descr.shape)
-                for i, scaler in enumerate(self.scalers):
-                    single_client_descr = client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes]
-                    scaled_client_descr[:, i*cfg.n_classes:(i+1)*cfg.n_classes] = scaler.fit_transform(
+                start_idx = 0
+                for i, (scaler, descr_dim) in enumerate(zip(self.scalers, self.descriptors_dim)):
+                    end_idx = start_idx + descr_dim
+                    single_client_descr = client_descr[:, start_idx:end_idx]
+                    scaled_client_descr[:, start_idx:end_idx] = scaler.fit_transform(
                         single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
-            
+                    start_idx = end_idx
+                
             return scaled_client_descr
         
         elif self.scaling_method == 2:
@@ -112,7 +118,6 @@ class client_descr_scaling:
         else:
             print("Invalid scaling method!")
             return None 
-
 
 
 # Config_client
@@ -275,6 +280,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             
             # scaling
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
+            print(f"\033[91mDescriptor shape {client_descr.shape}\033[0m")
             # print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
             
             # Apply PCA to reduce the data to 2D for visualization
@@ -587,7 +593,7 @@ def main() -> None:
     if cfg.check_cluster_at_inference:
         cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
         if cfg.selected_descriptors == "Pxy":
-            cluster_centroids = {label: centroid[len(centroid)//2:] for label, centroid in cluster_centroids.items()} # only latent space
+            cluster_centroids = {label: centroid[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] for label, centroid in cluster_centroids.items()} # only latent space
             print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
         elif cfg.selected_descriptors == "Px":
             print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
@@ -632,9 +638,9 @@ def main() -> None:
             
             if cfg.selected_descriptors == "Pxy":
                 descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-                descriptors = descriptors[:, descriptors.shape[1]//2:] # only latent space   
+                descriptors = descriptors[:, cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space
             elif cfg.selected_descriptors == "Px":
-                descriptors = descriptors[len(descriptors)//2:] # only latent space   
+                descriptors = descriptors[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space 
                 descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
             else:
                 raise ValueError("Invalid selected_descriptors")

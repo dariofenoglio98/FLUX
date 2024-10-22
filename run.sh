@@ -53,6 +53,7 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     pkill -u dario -f client.py
     pkill -u dariofenoglio -f client.py
     pkill -u mohan -f client.py
+    pkill -u mohanli -f client.py
 
     # Change back to the root directory
     cd ..
