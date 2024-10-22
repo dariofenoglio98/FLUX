@@ -83,6 +83,6 @@ ip = '0.0.0.0' # Local Host=0.0.0.0, or IP address of the server
 
 # Advance One-shot settings
 len_metric_descriptor =  n_classes
-n_metrics_descriptors = 2
-len_latent_space_descriptor = 2 * len_metric_descriptor
-n_latent_space_descriptors = 2
+n_metrics_descriptors = 2 if extended_descriptors else 1
+len_latent_space_descriptor = 1 * len_metric_descriptor   # modify this to change the latent space size
+n_latent_space_descriptors = 2 if extended_descriptors else 1
