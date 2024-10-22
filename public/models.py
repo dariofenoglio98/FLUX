@@ -218,6 +218,7 @@ class ModelEvaluator:
         f1_per_class = [0] * num_classes
         accuracy_per_class = [0] * num_classes
         loss_per_class = [0] * num_classes
+        loss_per_class_std = [0] * num_classes
         class_counts = [0] * num_classes
 
         y_true_all = []
@@ -303,6 +304,7 @@ class ModelEvaluator:
 
                 # Compute the loss for this class (average the loss of samples in this class)
                 class_loss = loss_all[class_mask].mean().item()
+                class_loss_std = loss_all[class_mask].std().item()
 
                 # Update class counts and metrics
                 precision_per_class[class_idx] = precision
@@ -310,6 +312,7 @@ class ModelEvaluator:
                 f1_per_class[class_idx] = f1
                 accuracy_per_class[class_idx] = accuracy
                 loss_per_class[class_idx] = class_loss
+                loss_per_class_std[class_idx] = class_loss_std
                 class_counts[class_idx] = class_mask.sum().item()
             else:
                 # If there are no samples for this class, set the metrics to -1
@@ -318,6 +321,7 @@ class ModelEvaluator:
                 f1_per_class[class_idx] = -1
                 accuracy_per_class[class_idx] = -1
                 loss_per_class[class_idx] = -1
+                loss_per_class_std[class_idx] = -1
                 class_counts[class_idx] = 0
         
         # Weighted loss / metric
@@ -337,7 +341,8 @@ class ModelEvaluator:
             "recall_pc": json.dumps(recall_per_class),
             "f1_pc": json.dumps(f1_per_class),
             "accuracy_pc": json.dumps(accuracy_per_class),
-            "loss_pc": json.dumps(loss_per_class),
+            "loss_pc_mean": json.dumps(loss_per_class),
+            "loss_pc_std": json.dumps(loss_per_class_std),
             "latent_space_mean": json.dumps(latent_mean),
             "latent_space_std": json.dumps(latent_std),
             "max_latent_space": float(new_max_latent_space),
@@ -369,6 +374,7 @@ class ModelEvaluator:
         f1_per_class = [0] * num_classes
         accuracy_per_class = [0] * num_classes
         loss_per_class = [0] * num_classes
+        loss_per_class_std = [0] * num_classes
         class_counts = [0] * num_classes
 
         y_true_all = []
@@ -446,15 +452,25 @@ class ModelEvaluator:
 
                 # Compute the loss for this class (average the loss of samples in this class)
                 class_loss = loss_all[class_mask].mean().item()
+                class_loss_std = loss_all[class_mask].std().item()
 
                 # Update class counts and metrics
                 f1_per_class[class_idx] = f1
                 accuracy_per_class[class_idx] = accuracy
                 loss_per_class[class_idx] = class_loss
+                loss_per_class_std[class_idx] = class_loss_std
                 class_counts[class_idx] = class_mask.sum().item()
+            else:
+                # If there are no samples for this class, set the metrics to -1
+                f1_per_class[class_idx] = -1
+                accuracy_per_class[class_idx] = -1
+                loss_per_class[class_idx] = -1
+                loss_per_class_std[class_idx] = -1
+                class_counts[class_idx] = 0
 
         if cfg.extended_descriptors:
-            return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
+            # return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
+            return np.array(loss_per_class + loss_per_class_std + latent_mean + latent_std)
         else:
             return np.array(loss_per_class + latent_mean)
 

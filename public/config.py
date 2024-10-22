@@ -1,9 +1,9 @@
 # Overall settings
-k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
-n_clients = 3
+n_clients = 10
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
@@ -27,7 +27,7 @@ plot_clients = False
 args = {
     # 'set_rotation': True,
     # 'set_color': True,
-    'rotations':2,
+    'rotations':4,
     'colors':3,
     # 'py_bank': 5,
     # 'client_n_class': 3,

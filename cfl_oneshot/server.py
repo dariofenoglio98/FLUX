@@ -247,15 +247,15 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                     if cfg.selected_descriptors == "Pxy":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using extended Pxy descriptors\033[0m")
-                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
-                                            json.loads(res.metrics["accuracy_pc"]) + \
+                        client_descr.append(json.loads(res.metrics["loss_pc_mean"]) + \
+                                            json.loads(res.metrics["loss_pc_std"]) + \
                                             json.loads(res.metrics["latent_space_mean"]) + \
                                             json.loads(res.metrics["latent_space_std"]))
                     elif cfg.selected_descriptors == "Py":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using extended Py descriptors\033[0m")
-                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
-                                            json.loads(res.metrics["accuracy_pc"]))
+                        client_descr.append(json.loads(res.metrics["loss_pc_mean"]) + \
+                                            json.loads(res.metrics["loss_pc_std"]))
                     elif cfg.selected_descriptors == "Px":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using extended Px descriptors\033[0m")
@@ -265,12 +265,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                     if cfg.selected_descriptors == "Pxy":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using basic Pxy descriptors\033[0m")
-                        client_descr.append(json.loads(res.metrics["loss_pc"]) + \
+                        client_descr.append(json.loads(res.metrics["loss_pc_mean"]) + \
                                             json.loads(res.metrics["latent_space_mean"]))
                     elif cfg.selected_descriptors == "Py":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using basic Py descriptors\033[0m")
-                        client_descr.append(json.loads(res.metrics["loss_pc"]))
+                        client_descr.append(json.loads(res.metrics["loss_pc_std"]))
                     elif cfg.selected_descriptors == "Px":
                         if res.metrics["cid"] == 1:
                             print(f"\033[91mClustering using basic Px descriptors\033[0m")
