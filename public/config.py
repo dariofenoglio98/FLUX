@@ -1,6 +1,6 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
@@ -18,7 +18,7 @@ eps_scaling = 1.1 # for clustering method 4
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
 verbose = True
@@ -28,7 +28,7 @@ plot_clients = False
 args = {
     # 'set_rotation': True,
     # 'set_color': True,
-    'rotations':4,
+    'rotations':2,
     'colors':3,
     # 'py_bank': 5,
     # 'client_n_class': 3,
@@ -37,6 +37,7 @@ args = {
     # 'scaling_color_low':0.0,
     # 'scaling_color_high':0.0,
     # 'random_order':True
+    # 'random_mode':2,
 }
 
 
@@ -45,7 +46,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 30
 local_epochs = 2
 lr = 0.005
 momentum = 0.9

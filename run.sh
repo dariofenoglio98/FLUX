@@ -50,13 +50,18 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # Clean up
     echo "Fold completed correctly"
     trap - SIGTERM 
-    pkill -u dario -f client.py
+    # pkill -u dario -f client.py
     pkill -u dariofenoglio -f client.py
-    pkill -u mohan -f client.py
-    pkill -u mohanli -f client.py
+    # pkill -u mohan -f client.py
+    # pkill -u mohanli -f client.py
+    # pkill -u dario -f server.py
+    pkill -u dariofenoglio -f sever.py
+    # pkill -u mohan -f server.py
+    # pkill -u mohanli -f server.py
 
     # Change back to the root directory
     cd ..
+    sleep 3
 
 done
 
@@ -66,6 +71,8 @@ if [ "$k_folds" -gt 1 ]; then
     echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
     # Averaging the results of all folds
     python public/average_results.py
+    # Plot confidence interval plots
+    python public/plots_across_folds.py
 fi
 
 

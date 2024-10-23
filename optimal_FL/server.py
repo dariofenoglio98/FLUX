@@ -324,7 +324,7 @@ def main() -> None:
 
     # Save loss and accuracy to a file
     print(f"Saving metrics to as .json in histories folder...")
-    with open(f'histories/{exp_path}/distributed_metrics.json', 'w') as f:
+    with open(f'histories/{exp_path}/distributed_metrics_{args.fold}.json', 'w') as f:
         json.dump({'loss': loss, 'accuracy': accuracy}, f)
 
     # Plot client training loss and accuracy

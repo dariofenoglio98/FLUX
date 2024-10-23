@@ -60,6 +60,8 @@ def plot_loss_and_accuracy(
     plt.savefig(loss_plot_path)
     if show:
         plt.show()
+    else:
+        plt.close()
 
     # Plot accuracy separately
     plt.figure(figsize=(12, 6))
@@ -78,6 +80,8 @@ def plot_loss_and_accuracy(
     plt.savefig(accuracy_plot_path)
     if show:
         plt.show()
+    else:
+        plt.close()
 
     # Print out server-side information
     print(f"\n\033[1;34mServer Side\033[0m \nMinimum Loss occurred at round {min_loss_index + 1} with a loss value of {loss[min_loss_index]:.3f} \nMaximum Accuracy occurred at round {max_accuracy_index + 1} with an accuracy value of {accuracy[max_accuracy_index]*100:.2f}\n")
@@ -221,6 +225,8 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fol
         plt.savefig(f"images/{cfg.default_path}/all_clients_loss_fold_{fold}.png")
     if show:
         plt.show()
+    else:
+        plt.close()
 
     plt.figure(figsize=(12, 6))
 
@@ -239,3 +245,6 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fol
         plt.savefig(f"images/{cfg.default_path}/all_clients_accuracy_fold_{fold}.png")
     if show:
         plt.show()
+    else:
+        plt.close()
+        
