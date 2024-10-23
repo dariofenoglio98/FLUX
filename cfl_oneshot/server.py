@@ -32,6 +32,8 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+from kneed import KneeLocator
 
 import sys
 import os
@@ -277,14 +279,20 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                         client_descr.append(json.loads(res.metrics["latent_space_mean"]))
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
+
             
             # scaling
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
-            print(f"\033[91mDescriptor shape {client_descr.shape}\033[0m")
+            # print(f"\033[91mDescriptor shape {client_descr.shape}\033[0m")
             # print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
+
+            # temp save
+            # save descriptors and cid list
+            # np.save(f'results/client_descr.npy', client_descr)
+            # np.save(f'results/client_id_plot.npy', client_id_plot)
 
             # KMeans
             if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
@@ -333,13 +341,36 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
             # DBSCAN_no_outliers
             elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 4:
-                eps = 0.1
-                while True:
-                    clustering = DBSCAN(eps=eps, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
-                    cluster_labels = clustering.fit_predict(client_descr)
-                    if min(cluster_labels) != -1: # no outliers now
-                        break
-                    eps += 0.1 # increase eps as boundaries
+                
+                # Calculate eps
+                nbrs = NearestNeighbors(n_neighbors=2).fit(client_descr)
+                distances, _ = nbrs.kneighbors(client_descr)
+                sorted_distances = np.sort(distances[:, 1])
+                kneedle = KneeLocator(range(len(sorted_distances)), sorted_distances, curve='convex', direction='increasing')
+                # print(f"kneedle.elbow: {sorted_distances[kneedle.elbow]}")
+                eps = sorted_distances[kneedle.elbow] * cfg.eps_scaling  
+
+                # Use this final eps for DBSCAN
+                clustering = DBSCAN(eps=eps, min_samples=2)
+                dbscan_cluster_labels = clustering.fit_predict(client_descr)
+
+                # Find the number of valid clusters (ignoring noise points, -1)
+                dbscan_valid_clusters = len(set(dbscan_cluster_labels)) - (1 if -1 in dbscan_cluster_labels else 0)
+
+                # Reassign noise points (-1) to new clusters starting from num_valid_clusters
+                cluster_labels = dbscan_cluster_labels.copy()
+                next_cluster_label = dbscan_valid_clusters  # Start assigning new cluster numbers
+
+                # Loop over the labels and assign new labels to noise points
+                for i, label in enumerate(dbscan_cluster_labels):
+                    if label == -1:  # Noise point detected
+                        cluster_labels[i] = next_cluster_label
+                        next_cluster_label += 1  # Move to the next cluster number
+
+                # Output the final eps, the number of clusters, and the new labels
+                print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
+                print(f"Cluster labels after reassigning noise points: {cluster_labels}")
+
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
@@ -353,7 +384,14 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
                 np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
-            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
+            # print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
+
+            # testing new printing
+            # Assuming cluster_labels is a dictionary where keys are client IDs and values are cluster labels
+            cluster_labels_list = list(self.cluster_labels.values())
+            client_id_plot_sorted, cluster_labels_sorted = zip(*sorted(zip(client_id_plot, cluster_labels_list)))
+
+            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters (Cluster labels: {cluster_labels_sorted} - Client IDs: {client_id_plot_sorted})\033[0m")
 
         ################################################################################
         # Federated averaging aggregation
