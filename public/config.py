@@ -18,9 +18,9 @@ eps_scaling = 1.1 # for clustering method 4
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "FMNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
+non_iid_type = 'label_skew_strict' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
@@ -28,10 +28,10 @@ plot_clients = False
 args = {
     # 'set_rotation': True,
     # 'set_color': True,
-    'rotations':2,
-    'colors':3,
-    # 'py_bank': 5,
-    # 'client_n_class': 3,
+    # 'rotations':2,
+    # 'colors':3,
+    'py_bank': 5,
+    'client_n_class': 3,
     # 'scaling_rotation_low':0.0,
     # 'scaling_rotation_high':0.0,
     # 'scaling_color_low':0.0,
