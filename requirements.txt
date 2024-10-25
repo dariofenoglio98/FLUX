@@ -46,3 +46,4 @@ wcwidth==0.2.13
 wheel==0.44.0
 flwr==1.11.0
 openpyxl
+kneed

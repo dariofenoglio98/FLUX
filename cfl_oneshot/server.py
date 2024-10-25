@@ -188,6 +188,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.aggregated_parameters_global = None
         self.cluster_status = 0 # 0: not started, 1: to cluster, 2: done
         self.n_clusters = 1 # current number of clusters
+        self.accuracy_trend = [] # accuracy trend for clustering
 
 
     # Override configure_fit method to add custom configuration
@@ -535,6 +536,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
         # Clustering requirements detection
         print(f"\033[93mRound {server_round} - Aggregated loss: {loss_aggregated} - Aggregated metrics: {metrics_aggregated}\033[0m")
+        self.accuracy_trend.append(metrics_aggregated["accuracy"])
         
         if self.cluster_status == 0: 
             # Update the max_latent_space for the next round
@@ -544,14 +546,19 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             
         # Cluster requirements check
         if self.cluster_status == 0:
-            # is this good? back to the question: when to cluster?
-            if metrics_aggregated["accuracy"] >= 100: # >= cfg.th_accuracy:
-                self.cluster_status = 1
-            # must-to cluster
-            elif server_round > 3:
-                self.cluster_status = 1
+            if server_round >= 3:
+                d_accuracy = np.diff(self.accuracy_trend)
+                if any(d_accuracy < cfg.th_round):
+                    print(f"\033[93mRound {server_round} - Threshold reached \033[0m")
+                    self.cluster_status = 1
+                elif server_round >= 0.8 * cfg.n_rounds:
+                    print(f"\033[93mRound {server_round} - Threshold not reached, but 80% of rounds done\033[0m")
+                    self.cluster_status = 1
+            # elif server_round > 3:
+            #     self.cluster_status = 1
             else:
                 print(f"\033[93mRound {server_round} - No need to cluster yet\033[0m")
+            
             print(f"\033[93mRound {server_round} - Will be clustering next round\033[0m") \
                 if self.cluster_status == 1 else None
 
