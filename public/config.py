@@ -7,21 +7,21 @@ n_clients = 10
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
-cfl_oneshot_CLIENT_CLUSTER_METHOD = 3 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
+cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
 extended_descriptors = True
 weighted_metric_descriptors = False
 selected_descriptors = "Pxy" # Options: "Px", "Py", "Pxy" for training time
-check_cluster_at_inference = True  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
-eps_scaling = 1.1 # for clustering method 4
+check_cluster_at_inference = False  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
+eps_scaling = 1.0 # for clustering method 4
 th_round = 0.05 # derivative threshold on accuracy trend for starting clustering (good enough evaluation model)
 
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
+non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
@@ -29,10 +29,10 @@ plot_clients = False
 args = {
     # 'set_rotation': True,
     # 'set_color': True,
-    'rotations':2,
+    'rotations':4,
     'colors':3,
     # 'py_bank': 5,
-    # 'client_n_class': 3,
+    # 'client_n_class': 5,
     # 'scaling_rotation_low':0.0,
     # 'scaling_rotation_high':0.0,
     # 'scaling_color_low':0.0,
@@ -41,13 +41,23 @@ args = {
     # 'random_mode':2,
 }
 
+args = {
+    'set_rotation': True,
+    'set_color': True,
+    'rotations':4,
+    'colors':1,
+    'random_mode':True,
+    'rotated_label_number':3,
+    'colored_label_number':3,
+} 
+
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 20
 local_epochs = 2
 lr = 0.005
 momentum = 0.9

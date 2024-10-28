@@ -71,6 +71,10 @@ class FlowerClient(fl.client.NumPyClient):
         train_features, val_features, train_labels, val_labels = train_test_split(
             cur_features, cur_labels, test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
         )
+        
+        # # take only 60 samples
+        # train_features = train_features[:500]
+        # train_labels = train_labels[:500]
 
         if train:
             train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
