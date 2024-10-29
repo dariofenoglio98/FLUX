@@ -1,5 +1,5 @@
 # Overall settings
-k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 3 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
@@ -11,15 +11,15 @@ cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_
 extended_descriptors = True
 weighted_metric_descriptors = False
 selected_descriptors = "Pxy" # Options: "Px", "Py", "Pxy" for training time
-check_cluster_at_inference = False  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
+# check_cluster_at_inference = False ALWAYS BOTH  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
 eps_scaling = 1.0 # for clustering method 4
-th_round = 0.05 # derivative threshold on accuracy trend for starting clustering (good enough evaluation model)
+th_round = 0.06 # derivative threshold on accuracy trend for starting clustering (good enough evaluation model)
 
 # Strategy fedprox
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
@@ -57,7 +57,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 20
+n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9

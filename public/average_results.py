@@ -50,6 +50,6 @@ result = calculate_mean_std_metrics(metrics)
 
 # Save the mean metrics to a file
 result_pd = pd.DataFrame(result)
-result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics.xlsx', index=False)
+result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}.xlsx', index=False)
 
 

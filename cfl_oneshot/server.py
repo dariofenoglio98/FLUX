@@ -381,13 +381,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Update results and assign clusters
             self.n_clusters = max(cluster_labels) + 1
             self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
-            if not cfg.check_cluster_at_inference or cfg.selected_descriptors == "Py":
-                cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
-                np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
+            # Save cluster labels
+            cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
+            np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
             # print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
 
-            # testing new printing
             # Assuming cluster_labels is a dictionary where keys are client IDs and values are cluster labels
             cluster_labels_list = list(self.cluster_labels.values())
             client_id_plot_sorted, cluster_labels_sorted = zip(*sorted(zip(client_id_plot, cluster_labels_list)))
@@ -634,25 +633,24 @@ def main() -> None:
     # Plots and Evaluation the model on the client datasets
     best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False, fold=args.fold)
     
-    # Read cluster centroids from json
-    if cfg.check_cluster_at_inference:
-        cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-        if cfg.selected_descriptors == "Pxy":
-            cluster_centroids = {label: centroid[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] for label, centroid in cluster_centroids.items()} # only latent space
-            print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
-        elif cfg.selected_descriptors == "Px":
-            print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
-        elif cfg.selected_descriptors == "Py":
-            # print in red color
-            print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
-            cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-            print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
-        else:
-            raise ValueError("Invalid selected_descriptors")
-    else:
+    # Read cluster centroids from json - for test-time inference
+    cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    if cfg.selected_descriptors == "Pxy":
+        cluster_centroids = {label: centroid[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] for label, centroid in cluster_centroids.items()} # only latent space
+        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
+    elif cfg.selected_descriptors == "Px":
+        print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
+    elif cfg.selected_descriptors == "Py":
+        # print in red color
+        print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
         cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
-        print(f"\033[93mRead cluster assignement during training for inference\033[0m\n")
         print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
+    else:
+        raise ValueError("Invalid selected_descriptors")
+    # Read cluster assignement during training for inference (known)
+    cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    print(f"\033[93mRead cluster assignement during training for inference\033[0m\n")
+    print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
@@ -661,6 +659,7 @@ def main() -> None:
 
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
+    losses_known, accuracies_known = [], []
     for client_id in range(cfg.n_clients):
         test_x, test_y = [], []
         if not cfg.training_drifting:
@@ -676,25 +675,23 @@ def main() -> None:
         test_dataset = models.CombinedDataset(test_x, test_y, transform=None)
         test_loader = DataLoader(test_dataset, batch_size=cfg.test_batch_size, shuffle=False)
     
-        if cfg.check_cluster_at_inference and cfg.selected_descriptors != "Py":
-            # Extract descriptors, scaling
-            descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
-                                                        model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
-            
-            if cfg.selected_descriptors == "Pxy":
-                descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-                descriptors = descriptors[:, cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space
-            elif cfg.selected_descriptors == "Px":
-                descriptors = descriptors[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space 
-                descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-            else:
-                raise ValueError("Invalid selected_descriptors")
-           
-            # Find the closest cluster centroid
-            client_cluster = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
+        # --- Test-time inference: check closest cluster ---
+        # Extract descriptors, scaling
+        descriptors = models.ModelEvaluator(test_loader=test_loader, device=device).extract_descriptors_inference(
+                                                    model=evaluation_model, max_latent_space=MAX_LATENT_SPACE)
+        
+        if cfg.selected_descriptors == "Pxy":
+            descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
+            descriptors = descriptors[:, cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space
+        elif cfg.selected_descriptors == "Px":
+            descriptors = descriptors[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space 
+            descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
         else:
-            client_cluster = cluster_labels_inference[client_id]
-
+            raise ValueError("Invalid selected_descriptors")
+    
+        # Find the closest cluster centroid
+        client_cluster = min(cluster_centroids, key=lambda k: np.linalg.norm(descriptors - cluster_centroids[k]))
+        
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                         input_size=cfg.input_size).to(device)
@@ -705,10 +702,26 @@ def main() -> None:
         print(f"\033[93mClient {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f} - Closest centroid {client_cluster}\033[0m")
         accuracies.append(accuracy_test)
         losses.append(loss_test)
+        
+        # --- Participating clients: assign known cluster ---
+        client_cluster = cluster_labels_inference[client_id]
+
+        # Load respective cluster model
+        cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
+                                        input_size=cfg.input_size).to(device)
+        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
+        
+        # Evaluate
+        loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)
+        print(f"\033[93mClient (known) {client_id} - Test Loss: {loss_test:.3f}, Test Accuracy: {accuracy_test*100:.2f} - Closest centroid {client_cluster}\033[0m")
+        accuracies_known.append(accuracy_test)
+        losses_known.append(loss_test)
+
 
 
     # print average loss and accuracy
     print(f"\n\033[93mAverage Loss: {np.mean(losses):.3f}, Average Accuracy: {np.mean(accuracies)*100:.2f}\033[0m")
+    print(f"\033[93mAverage Loss (known): {np.mean(losses_known):.3f}, Average Accuracy (known): {np.mean(accuracies_known)*100:.2f}\033[0m")
     print(f"\033[90mTraining time: {round((time.time() - start_time)/60, 2)} minutes\033[0m")
     
     # Save metrics as numpy array
@@ -717,6 +730,10 @@ def main() -> None:
         "accuracy": accuracies,
         "average_loss": np.mean(losses),
         "average_accuracy": np.mean(accuracies),
+        "loss_known": losses_known,
+        "accuracy_known": accuracies_known,
+        "average_loss_known": np.mean(losses_known),
+        "average_accuracy_known": np.mean(accuracies_known),
         "time": round((time.time() - start_time)/60, 2)
     }
     np.save(f'results/{exp_path}/test_metrics_fold_{args.fold}.npy', metrics)
