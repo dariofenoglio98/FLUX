@@ -73,8 +73,9 @@ class FlowerClient(fl.client.NumPyClient):
         )
         
         # take only 60 samples
-        # train_features = train_features[:500]
-        # train_labels = train_labels[:500]
+        if cfg.n_samples_clients > 0:
+            train_features = train_features[:cfg.n_samples_clients]
+            train_labels = train_labels[:cfg.n_samples_clients]
 
         if train:
             train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
