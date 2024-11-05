@@ -1,10 +1,10 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
-n_samples_clients = 2048 # if -1, use all samples
+n_samples_clients = 1024 # if -1, use all samples
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1
@@ -22,7 +22,7 @@ fedprox_proximal_mu = 0.1
 # Dataset settings
 dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_condition_skew' # refer to ANDA page for more details
+non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
@@ -50,20 +50,20 @@ args = {
 }
 
 # feature_skew_strict
-# args = {
-#     'set_rotation': True,
-#     'set_color': True,
-#     'rotations':4,
-#     'colors':3,
-# }
+args = {
+    'set_rotation': True,
+    'set_color': True,
+    'rotations':4,
+    'colors':3,
+}
 
 # feature_condition_skew
-args = {
-    'random_mode':True,
-    'mixing_label_number':3,
-    'scaling_label_low':0.8,
-    'scaling_label_high':0.8,
-}
+# args = {
+#     'random_mode':True,
+#     'mixing_label_number':3,
+#     'scaling_label_low':0.8,
+#     'scaling_label_high':0.8,
+# }
 
 # label_condition_skew
 # args = {
@@ -81,7 +81,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 30
+n_rounds = 40
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
