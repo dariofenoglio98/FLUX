@@ -1,6 +1,6 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
@@ -22,7 +22,7 @@ fedprox_proximal_mu = 0.1
 # Dataset settings
 dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
+non_iid_type = 'feature_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
@@ -33,7 +33,7 @@ args = {
     # 'rotations':4,
     # 'colors':3,
     # 'py_bank': 5,
-    # 'client_n_class': 2,
+    # 'client_n_class': 8,
     # 'scaling_rotation_low':0.0,
     # 'scaling_rotation_high':0.0,
     # 'scaling_color_low':0.0,
@@ -58,30 +58,30 @@ args = {
 # }
 
 # feature_condition_skew
-# args = {
-#     'random_mode':True,
-#     'mixing_label_number':3,
-#     'scaling_label_low':0.8,
-#     'scaling_label_high':0.8,
-# }
+args = {
+    'random_mode':True,
+    'mixing_label_number':3,
+    'scaling_label_low':0.8,
+    'scaling_label_high':0.8,
+}
 
 # label_condition_skew
-args = {
-        'set_rotation': True,
-        'set_color': True,
-        'rotations':4,
-        'colors':1,
-        'random_mode':True,
-        'rotated_label_number':2,
-        'colored_label_number':2,
-}
+# args = {
+#         'set_rotation': True,
+#         'set_color': True,
+#         'rotations':4,
+#         'colors':1,
+#         'random_mode':True,
+#         'rotated_label_number':8,
+#         'colored_label_number':8,
+# }
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 20
+n_rounds = 30
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
