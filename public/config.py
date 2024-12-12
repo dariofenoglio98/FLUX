@@ -1,17 +1,18 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
-n_samples_clients = 1024 # if -1, use all samples
+n_samples_clients = -1 # if -1, use all samples
 
 # Strategy cfl_oneshot
-cfl_oneshot_CLIENT_SCALING_METHOD = 1
+cfl_oneshot_CLIENT_SCALING_METHOD = 1 # ['Ours', 'weighted', 'none']
 cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers']
-extended_descriptors = True
+extended_descriptors = True #mean and std 
 weighted_metric_descriptors = False
-selected_descriptors = "Pxy" # Options: "Px", "Py", "Pxy" for training time
+selected_descriptors = "Px_cond" # Options: "Px", "Py", "Pxy", "Px_cond" for training time
+pos_multiplier = 1 # positional embedding multiplier 
 # check_cluster_at_inference = False ALWAYS BOTH  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
 eps_scaling = 1.0 # for clustering method 4
 th_round = 0.06 # derivative threshold on accuracy trend for starting clustering (good enough evaluation model)
@@ -20,68 +21,74 @@ th_round = 0.06 # derivative threshold on accuracy trend for starting clustering
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_skew_strict' # refer to ANDA page for more details
+non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
 # careful with the args applying to your settings above
-args = {
-    # 'set_rotation': True,
-    # 'set_color': True,
-    # 'rotations':4,
-    # 'colors':3,
-    # 'py_bank': 5,
-    # 'client_n_class': 8,
-    # 'scaling_rotation_low':0.0,
-    # 'scaling_rotation_high':0.0,
-    # 'scaling_color_low':0.0,
-    # 'scaling_color_high':0.0,
-    # 'random_order':True
-    # 'random_mode':True,
-    # 'mixing_label_number':3,
-    # 'scaling_label_low':0.8, 
-    # 'scaling_label_high':0.8,
-    # 'random_mode':True,
-    # 'mixing_label_number':3,
-    # 'rotated_label_number':2,
-    # 'colored_label_number':2,
-}
+# args = {
+#     # 'set_rotation': True,
+#     # 'set_color': True,
+#     # 'rotations':4,
+#     # 'colors':3,
+#     # 'py_bank': 5,
+#     # 'client_n_class': 8,
+#     # 'scaling_rotation_low':0.0,
+#     # 'scaling_rotation_high':0.0,
+#     # 'scaling_color_low':0.0,
+#     # 'scaling_color_high':0.0,
+#     # 'random_order':True
+#     # 'random_mode':True,
+#     # 'mixing_label_number':3,
+#     # 'scaling_label_low':0.8, 
+#     # 'scaling_label_high':0.8,
+#     # 'random_mode':True,
+#     # 'mixing_label_number':3,
+#     # 'rotated_label_number':2,
+#     # 'colored_label_number':2,
+# }
 
 # feature_skew_strict
-args = {
-    'set_rotation': True,
-    'set_color': True,
-    'rotations':4,
-    'colors':3,
-}
+# args = {
+#     'set_rotation': True,
+#     'set_color': True,
+#     'rotations':4,
+#     'colors':1,
+# }
+
+# # label_skew_strict
+# args = {
+#     'py_bank': 5,
+#     'client_n_class': 4,
+# }
 
 # feature_condition_skew
 # args = {
 #     'random_mode':True,
 #     'mixing_label_number':3,
-#     'scaling_label_low':0.8,
-#     'scaling_label_high':0.8,
+#     'scaling_label_low':1.0,
+#     'scaling_label_high':1.0,
 # }
 
-# label_condition_skew
-# args = {
-#         'set_rotation': True,
-#         'set_color': True,
-#         'rotations':4,
-#         'colors':1,
-#         'random_mode':True,
-#         'rotated_label_number':8,
-#         'colored_label_number':8,
-# }
+# # label_condition_skew
+args = {
+        'set_rotation': True,
+        'set_color': True,
+        'rotations':4,
+        'colors':1,
+        'random_mode':True,
+        'rotated_label_number':3,
+        'colored_label_number':3,
+}
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 40
+n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
@@ -115,7 +122,7 @@ training_drifting = False if drifting_type in ['static', 'trND_teDR'] else True 
 default_path = f"{random_seed}/{model_name}/{dataset_name}/{drifting_type}"
 
 # FL settings - Communications
-port = '8098'
+port = '8018'
 ip = '0.0.0.0' # Local Host=0.0.0.0, or IP address of the server
 
 # Advance One-shot settings

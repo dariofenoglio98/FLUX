@@ -76,6 +76,8 @@ class FlowerClient(fl.client.NumPyClient):
         if cfg.n_samples_clients > 0:
             train_features = train_features[:cfg.n_samples_clients]
             train_labels = train_labels[:cfg.n_samples_clients]
+        
+        print(f"client shape data: {train_features.shape}, {val_features.shape}")
 
         if train:
             train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)

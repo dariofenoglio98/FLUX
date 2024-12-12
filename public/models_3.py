@@ -226,11 +226,11 @@ class ModelEvaluator:
         loss_all = []
         latent_all = []
         latent_mean = []
-        latent_cond = []
         loss_trad = 0
         total_samples = 0
 
         # Accumulate predictions and targets over batches
+        j=0
         with torch.no_grad():
             for data, target in self.test_loader:
                 data, target = data.to(self.device), target.to(self.device)
@@ -238,20 +238,27 @@ class ModelEvaluator:
                 # model output
                 output, latent_space = model(data, latent=True)
                 
-                # latent space condition
-                if cfg.selected_descriptors == "Px_cond":
-                    latent_space_cond = torch.zeros_like(latent_space)
-                    for i in range(len(target)):
-                        # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
-                        latent_space_cond[i] = latent_space[i] + latent_space[i] * cfg.pos_multiplier*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)
-                    latent_cond.extend(latent_space_cond.cpu().numpy())
+            
+                # print
+                # print(f"target: {target}")
+                # print(f"latent space {latent_space.cpu()[0]}")
+                # print(f"target {torch.ones_like(latent_space[0])*target[0]}")
+                # print(f"latent space shape {latent_space.shape}")
+                
+                # if j == 0 and client_id == 0:
+                #     print(f"Latent space: {latent_space[0][:10]}")
                     
-                    # latent_cond.extend((latent_space + latent_space * 5 * torch.sin(target.unsqueeze(1) / (10000 ** (torch.arange(latent_space.size(1), device=latent_space.device).float() / latent_space.size(1)))).to(latent_space.device)).cpu().numpy())
+                # # for i in range(len(target)):
+                # #     # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
+                # #     latent_space[i] = latent_space[i] + latent_space[i] * 10*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)
 
-                # for i in range(len(target)):
-                #     # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
-                #     latent_space[i] = latent_space[i] + latent_space[i] * 5*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)
-                    
+                latent_space += latent_space * 5 * torch.sin(target.unsqueeze(1) / (10000 ** (torch.arange(latent_space.size(1), device=latent_space.device).float() / latent_space.size(1)))).to(latent_space.device)
+
+                # if j == 0 and client_id == 0:
+                #     print(f"Latent space2: {latent_space[0][:10]}")
+                #     j += 1
+                
+                
                 latent_all.extend(latent_space.cpu().numpy())
                     
                 y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
@@ -301,17 +308,6 @@ class ModelEvaluator:
         # Mean and std on first dimension
         latent_mean = list(np.mean(latent_all, axis=0))
         latent_std = list(np.std(latent_all, axis=0))
-        
-        if cfg.selected_descriptors == "Px_cond":
-            latent_cond = np.array(latent_cond)
-            # transform latent_all
-            latent_cond = pca.transform(latent_cond)
-            # Mean and std on first dimension
-            latent_mean_cond = list(np.mean(latent_cond, axis=0))
-            latent_std_cond = list(np.std(latent_cond, axis=0))
-        else:
-            latent_mean_cond = []
-            latent_std_cond = []
             
         # Iterate through each class (for MNIST, classes are 0 to 9 by default)
         for class_idx in range(num_classes):
@@ -372,8 +368,6 @@ class ModelEvaluator:
             "loss_pc_std": json.dumps(loss_per_class_std),
             "latent_space_mean": json.dumps(latent_mean),
             "latent_space_std": json.dumps(latent_std),
-            "latent_space_cond_mean": json.dumps(latent_mean_cond),
-            "latent_space_cond_std": json.dumps(latent_std_cond),
             "max_latent_space": float(new_max_latent_space),
             "class_counts": json.dumps(class_counts),
             "cid": int(client_id)
@@ -411,7 +405,6 @@ class ModelEvaluator:
         loss_all = []
         latent_all = []
         latent_mean = []
-        latent_cond = []
         loss_trad = 0
         total_samples = 0
 
@@ -422,15 +415,6 @@ class ModelEvaluator:
                 
                 # model output
                 output, latent_space = model(data, latent=True)
-
-                # latent space condition
-                if cfg.selected_descriptors == "Px_cond":
-                    latent_space_cond = torch.zeros_like(latent_space)
-                    for i in range(len(target)):
-                        # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
-                        latent_space_cond[i] = latent_space[i] + latent_space[i] * cfg.pos_multiplier*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)  
-                    latent_cond.extend(latent_space_cond.cpu().numpy())
-                    
                 latent_all.extend(latent_space.cpu().numpy())
                     
                 y_pred_batch = output.argmax(dim=1, keepdim=False)  # Predicted class labels
@@ -474,14 +458,6 @@ class ModelEvaluator:
         # Mean and std on first dimension
         latent_mean = list(np.mean(latent_all, axis=0))
         latent_std = list(np.std(latent_all, axis=0))
-        
-        if cfg.selected_descriptors == "Px_cond":
-            latent_cond = np.array(latent_cond)
-            # transform latent_all
-            latent_cond = pca.transform(latent_cond)
-            # Mean and std on first dimension
-            latent_mean_cond = list(np.mean(latent_cond, axis=0))
-            latent_std_cond = list(np.std(latent_cond, axis=0))
             
         # Iterate through each class (for MNIST, classes are 0 to 9 by default)
         for class_idx in range(num_classes):
@@ -516,16 +492,10 @@ class ModelEvaluator:
                 class_counts[class_idx] = 0
 
         if cfg.extended_descriptors:
-            if cfg.selected_descriptors == "Px_cond":
-                return np.array(latent_mean + latent_std + latent_mean_cond + latent_std_cond)
-            else:
-                # return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
-                return np.array(loss_per_class + loss_per_class_std + latent_mean + latent_std)
+            # return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
+            return np.array(loss_per_class + loss_per_class_std + latent_mean + latent_std)
         else:
-            if cfg.selected_descriptors == "Px_cond":
-                return np.array(latent_mean + latent_mean_cond)
-            else:
-                return np.array(loss_per_class + latent_mean)
+            return np.array(loss_per_class + latent_mean)
 
     def evaluate(self, model):
         """
