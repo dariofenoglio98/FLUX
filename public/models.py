@@ -286,6 +286,7 @@ class ModelEvaluator:
         
         # Average latent
         latent_all = np.array(latent_all)
+        latent_save = copy.deepcopy(latent_all)
         new_max_latent_space = np.max(latent_all)
         # SCALE OR NOT TRY BOTH
         # scaler = MinMaxScaler(feature_range=(0, max_latent_space)) # maybe try also StandardScaler
@@ -352,6 +353,57 @@ class ModelEvaluator:
                 loss_per_class_std[class_idx] = -1
                 class_counts[class_idx] = 0
         
+        # Px per label        
+        if cfg.selected_descriptors == "Px_label_long":
+            labels = y_true_all.cpu().numpy()
+            latent_mean_by_label = []
+            latent_std_by_label = []
+            for label in range(cfg.n_classes):
+                # Find indices of samples corresponding to the current label
+                indices = np.where(labels == label)[0]
+                # Extract the latent vectors for these samples
+                latent_subset = latent_save[indices]
+                if latent_subset.shape[0] > 1:
+                    # transform latent_all
+                    latent_subset = pca.transform(latent_subset)
+                    # Mean and std on first dimension
+                    latent_mean_by_label.append(list(np.mean(latent_subset, axis=0)))
+                    latent_std_by_label.append(list(np.std(latent_subset, axis=0)))
+                else:
+                    latent_mean_by_label.append([-1]*cfg.len_latent_space_descriptor)
+                    latent_std_by_label.append([-1]*cfg.len_latent_space_descriptor)
+            
+            # concatenate latent_mean_by_label and latent_std_by_label
+            latent_mean_by_label = list(np.array(latent_mean_by_label).flatten())
+            latent_std_by_label = list(np.array(latent_std_by_label).flatten())
+            
+        elif cfg.selected_descriptors == "Px_label_short":
+            labels = y_true_all.cpu().numpy()
+            latent_mean_by_label = []
+            latent_std_by_label = []
+            for label in range(cfg.n_classes):
+                # Find indices of samples corresponding to the current label
+                indices = np.where(labels == label)[0]
+                # Extract the latent vectors for these samples
+                latent_subset = latent_save[indices]
+                if latent_subset.shape[0] > 1:
+                    latent_subset = latent_subset.mean(axis=1)
+                    # Mean and std on first dimension
+                    latent_mean_by_label.append(np.mean(latent_subset, axis=0))
+                    latent_std_by_label.append(np.std(latent_subset, axis=0))
+                else:
+                    latent_mean_by_label.append(-1)
+                    latent_std_by_label.append(-1)
+            
+            # concatenate latent_mean_by_label and latent_std_by_label
+            latent_mean_by_label = np.array(latent_mean_by_label).tolist()
+            latent_std_by_label = np.array(latent_std_by_label).tolist()
+            
+        else:
+            latent_mean_by_label = []
+            latent_std_by_label = []
+
+                
         # Weighted loss / metric
         if cfg.weighted_metric_descriptors: # TODO: Not conviced about this, we are flattening a lot of information
             # Weight the loss / metric by the number of samples in each class
@@ -360,7 +412,7 @@ class ModelEvaluator:
             accuracy_per_class = [accuracy_per_class[i] / class_counts[i] if class_counts[i] > 0 else accuracy_per_class[i] \
                                 for i in range(num_classes)]            
             
-            
+
         res = {
             "num_examples_val": len(self.test_loader.dataset),
             "loss_val": float(loss_trad),
@@ -375,6 +427,8 @@ class ModelEvaluator:
             "latent_space_std": json.dumps(latent_std),
             "latent_space_cond_mean": json.dumps(latent_mean_cond),
             "latent_space_cond_std": json.dumps(latent_std_cond),
+            "latent_space_mean_by_label": json.dumps(latent_mean_by_label),
+            "latent_space_std_by_label": json.dumps(latent_std_by_label),
             "max_latent_space": float(new_max_latent_space),
             "class_counts": json.dumps(class_counts),
             "cid": int(client_id)
@@ -460,6 +514,7 @@ class ModelEvaluator:
         
         # Average latent
         latent_all = np.array(latent_all)
+        latent_save = copy.deepcopy(latent_all)
         # SCALE OR NOT TRY BOTH
         # scaler = MinMaxScaler(feature_range=(0, max_latent_space)) # maybe try also StandardScaler
         # latent_all = scaler.fit_transform(latent_all) # Sample, Dim_latent_space
@@ -516,11 +571,66 @@ class ModelEvaluator:
                 loss_per_class_std[class_idx] = -1
                 class_counts[class_idx] = 0
 
+        # Px per label        
+        if cfg.selected_descriptors == "Px_label_long":
+            labels = y_true_all.cpu().numpy()
+            latent_mean_by_label = []
+            latent_std_by_label = []
+            for label in range(cfg.n_classes):
+                # Find indices of samples corresponding to the current label
+                indices = np.where(labels == label)[0]
+                # Extract the latent vectors for these samples
+                latent_subset = latent_save[indices]
+                if latent_subset.shape[0] > 1:
+                    # transform latent_all
+                    latent_subset = pca.transform(latent_subset)
+                    # Mean and std on first dimension
+                    latent_mean_by_label.append(list(np.mean(latent_subset, axis=0)))
+                    latent_std_by_label.append(list(np.std(latent_subset, axis=0)))
+                else:
+                    latent_mean_by_label.append([-1]*cfg.len_latent_space_descriptor)
+                    latent_std_by_label.append([-1]*cfg.len_latent_space_descriptor)
+            
+            # concatenate latent_mean_by_label and latent_std_by_label
+            latent_mean_by_label = list(np.array(latent_mean_by_label).flatten())
+            latent_std_by_label = list(np.array(latent_std_by_label).flatten())
+
+
+        elif cfg.selected_descriptors == "Px_label_short":
+            labels = y_true_all.cpu().numpy()
+            latent_mean_by_label = []
+            latent_std_by_label = []
+            for label in range(cfg.n_classes):
+                # Find indices of samples corresponding to the current label
+                indices = np.where(labels == label)[0]
+                # Extract the latent vectors for these samples
+                latent_subset = latent_save[indices]
+                if latent_subset.shape[0] > 1:
+                    latent_subset = latent_subset.mean(axis=1)
+                    # Mean and std on first dimension
+                    latent_mean_by_label.append(np.mean(latent_subset, axis=0))
+                    latent_std_by_label.append(np.std(latent_subset, axis=0))
+                else:
+                    latent_mean_by_label.append(-1)
+                    latent_std_by_label.append(-1)
+            
+            # concatenate latent_mean_by_label and latent_std_by_label
+            latent_mean_by_label = np.array(latent_mean_by_label).tolist()
+            latent_std_by_label = np.array(latent_std_by_label).tolist()
+            
+        else:
+            latent_mean_by_label = []
+            latent_std_by_label = []
+
         if cfg.extended_descriptors:
             if cfg.selected_descriptors == "Px_cond":
                 return np.array(latent_mean + latent_std + latent_mean_cond + latent_std_cond)
             elif cfg.selected_descriptors == "Pxy_cond":
                 return np.array(latent_mean + latent_std + latent_mean_cond + latent_std_cond + loss_per_class + loss_per_class_std)
+            elif cfg.selected_descriptors == "Px_label_long":
+                return np.array(latent_mean + latent_std + latent_mean_by_label + latent_std_by_label)
+            elif cfg.selected_descriptors == "Px_label_short":
+                return np.array(latent_mean + latent_std + latent_mean_by_label + latent_std_by_label)
             else:
                 # return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
                 return np.array(loss_per_class + loss_per_class_std + latent_mean + latent_std)
@@ -529,8 +639,13 @@ class ModelEvaluator:
                 return np.array(latent_mean + latent_mean_cond)
             elif cfg.selected_descriptors == "Pxy_cond":
                 return np.array(latent_mean + latent_mean_cond + loss_per_class)
+            elif cfg.selected_descriptors == "Px_label_long":
+                return np.array(latent_mean + latent_mean_by_label)
+            elif cfg.selected_descriptors == "Px_label_short":
+                return np.array(latent_mean + latent_mean_by_label)
             else:
                 return np.array(loss_per_class + latent_mean)
+
 
     def evaluate(self, model):
         """

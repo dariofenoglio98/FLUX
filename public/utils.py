@@ -185,7 +185,7 @@ def calculate_centroids(data: np.ndarray,
     """
     
     # Kmeans
-    if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
+    if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1 or cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
         centroids = clustering_method.cluster_centers_
         centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
     

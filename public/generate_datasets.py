@@ -74,9 +74,14 @@ else:
 # Save anda_dataset
 # simple format as training not drifting
 if not cfg.training_drifting:
+    n_clusters = []
     for client_number in range(cfg.n_clients):
         np.save(f'./data/cur_datasets/client_{client_number}', anda_dataset[client_number])
         print(f"Data for client {client_number} saved")
+        n_clusters.append(anda_dataset[client_number]["cluster"])
+    n_clusters = np.unique(n_clusters).shape[0]
+    print(f"\033[91mNumber of correct clusters: {n_clusters}\033[0m")
+    np.save(f'./data/cur_datasets/n_clusters.npy', n_clusters)
 
 # complex format as training drifting
 else:

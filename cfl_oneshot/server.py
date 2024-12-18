@@ -33,7 +33,7 @@ from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
-from kneed import KneeLocator
+from kneed import KneeLocator # type: ignore
 
 import sys
 import os
@@ -67,65 +67,6 @@ MAX_LATENT_SPACE = 2
 # WHAT IF: we introduced latent space descriptors per class, i.e., selecting only one class, calculating the mean latent
 # space on it, reducing dim, and then same for others. Creating something like [metrics, latent_class1, latent_class2..]
 
-    
-    
-# # client_descr_scaled
-# class client_descr_scaling:
-#     def __init__(self, 
-#                  scaling_method: int = 1, 
-#                  scaler = None, # MinMaxScaler() or StandardScaler()
-#                  *args,
-#                  **kwargs):
-#         self.scaling_method = scaling_method
-#         self.scaler = scaler
-#         self.scalers = None
-#         self.fitted = False 
-#         self.descriptors_dim = [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors + [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors
-
-#     def scale(self, client_descr: np.ndarray = None) -> np.ndarray:
-#         # Normalize by group of descriptors
-#         if self.scaling_method == 1:
-#             if self.scalers is None:
-#                 self.scalers = [copy.deepcopy(self.scaler) for _ in range(client_descr.shape[1]//cfg.n_classes)]
-#                 self.dim = client_descr.shape[1]
-             
-#             if self.fitted:
-#                 if client_descr.shape[1] != self.dim:
-#                     raise ValueError("Client descriptors dimension mismatch!")
-#                 scaled_client_descr = np.zeros(client_descr.shape)
-#                 start_idx = 0
-#                 for i, (scaler, descr_dim) in enumerate(zip(self.scalers, self.descriptors_dim)):
-#                     end_idx = start_idx + descr_dim
-#                     single_client_descr = client_descr[:, start_idx:end_idx]
-#                     scaled_client_descr[:, start_idx:end_idx] = scaler.transform(
-#                         single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
-#                     start_idx = end_idx
-#             else:
-#                 self.fitted = True
-#                 scaled_client_descr = np.zeros(client_descr.shape)
-#                 start_idx = 0
-#                 for i, (scaler, descr_dim) in enumerate(zip(self.scalers, self.descriptors_dim)):
-#                     end_idx = start_idx + descr_dim
-#                     single_client_descr = client_descr[:, start_idx:end_idx]
-#                     scaled_client_descr[:, start_idx:end_idx] = scaler.fit_transform(
-#                         single_client_descr.reshape(-1, 1)).reshape(single_client_descr.shape)
-#                     start_idx = end_idx
-                
-#             return scaled_client_descr
-        
-#         elif self.scaling_method == 2:
-#             # TODO weighted scaling
-#             return None
-        
-#         elif self.scaling_method == 3:
-#             # No scaling
-#             return client_descr
-        
-#         else:
-#             print("Invalid scaling method!")
-#             return None 
-
-
 class client_descr_scaling:
     def __init__(self, 
                  scaling_method: int = 1, 
@@ -148,6 +89,12 @@ class client_descr_scaling:
         elif cfg.selected_descriptors == 'Pxy_cond':
             self.descriptors_dim = [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors * 2 + [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors
             self.num_scalers = cfg.n_latent_space_descriptors * 2 + cfg.n_metrics_descriptors
+        elif cfg.selected_descriptors == 'Px_label_long':
+            self.descriptors_dim = [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors * (cfg.n_classes + 1)
+            self.num_scalers = cfg.n_latent_space_descriptors * (cfg.n_classes + 1)
+        elif cfg.selected_descriptors == 'Px_label_short':
+            self.descriptors_dim = [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors * 2
+            self.num_scalers = cfg.n_latent_space_descriptors * 2
         else:
             self.descriptors_dim = [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors + [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors
             self.num_scalers = cfg.n_metrics_descriptors + cfg.n_latent_space_descriptors
@@ -356,6 +303,20 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                                             json.loads(res.metrics["latent_space_cond_std"]) + \
                                             json.loads(res.metrics["loss_pc_mean"]) + \
                                             json.loads(res.metrics["loss_pc_std"]))
+                    elif cfg.selected_descriptors == "Px_label_long":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Px_label_long descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]) + \
+                                            json.loads(res.metrics["latent_space_std_by_label"]))
+                    elif cfg.selected_descriptors == "Px_label_short":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Px_label_short descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]) + \
+                                            json.loads(res.metrics["latent_space_std_by_label"]))
                 else:    
                     if cfg.selected_descriptors == "Pxy":
                         if res.metrics["cid"] == 1:
@@ -381,6 +342,16 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                         client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
                                             json.loads(res.metrics["latent_space_cond_mean"]) + \
                                             json.loads(res.metrics["loss_pc_mean"]))
+                    elif cfg.selected_descriptors == "Px_label_long":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Px_label_long descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]))
+                    elif cfg.selected_descriptors == "Px_label_short":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Px_label_short descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]))                        
                         
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
@@ -388,9 +359,10 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             
             # scaling
             client_descr = self.descriptors_scaler.scale(np.array(client_descr))
+            print(f"\033[91mRound {server_round} - Shape descriptors {client_descr.shape}\033[0m")
+            
 
-            # print(f"\033[91mDescriptor shape {client_descr.shape}\033[0m")
-            # print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
+            print(f"\033[91mRound {server_round} - Scaled client descriptors {client_descr}\033[0m")
             
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
@@ -479,6 +451,18 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
+
+            # DBSCAN_no_outliers
+            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
+                # known prior number of clusters
+                n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                
+                # Use Kmeans for supervised clustering
+                clustering = KMeans(n_clusters=n_clusters, random_state=cfg.random_seed)
+                cluster_labels = clustering.fit_predict(client_descr)
+                # Calculate and save centroids
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
             
             else:
                 print("Invalid clustering method!")
@@ -750,7 +734,7 @@ def main() -> None:
         print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
         cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
         print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
-    elif cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
+    elif cfg.selected_descriptors in ["Px_cond", "Pxy_cond", "Px_label_long", "Px_label_short"]:
         cluster_centroids = {label: centroid[:cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor] for label, centroid in cluster_centroids.items()}
         print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
     else:
@@ -794,7 +778,7 @@ def main() -> None:
         elif cfg.selected_descriptors == "Px":
             descriptors = descriptors[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space 
             descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-        elif cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
+        elif cfg.selected_descriptors in ["Px_cond", "Pxy_cond", "Px_label_long", "Px_label_short"]:
             descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
             descriptors = descriptors[:, :cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor] # only latent space
         else:

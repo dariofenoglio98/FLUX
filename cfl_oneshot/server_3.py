@@ -33,7 +33,7 @@ from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
-from kneed import KneeLocator
+from kneed import KneeLocator # type: ignore
 
 import sys
 import os
