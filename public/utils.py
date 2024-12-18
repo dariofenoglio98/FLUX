@@ -197,6 +197,7 @@ def calculate_centroids(data: np.ndarray,
             centroids_dict[label] = np.array(cluster_points.mean(axis=0))
     
     # Save
+    print(f"Centroids: {centroids_dict}")
     if save:
         path = f"results/{cfg.default_path}"
         np.save(f"{path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)

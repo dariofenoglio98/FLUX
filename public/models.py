@@ -239,11 +239,12 @@ class ModelEvaluator:
                 output, latent_space = model(data, latent=True)
                 
                 # latent space condition
-                if cfg.selected_descriptors == "Px_cond":
+                if cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
                     latent_space_cond = torch.zeros_like(latent_space)
                     for i in range(len(target)):
                         # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
                         latent_space_cond[i] = latent_space[i] + latent_space[i] * cfg.pos_multiplier*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)
+                        # latent_space_cond[i] = latent_space[i] + cfg.pos_multiplier*torch.sin(torch.ones_like(latent_space[i])*target[i]/(10000**(torch.arange(len(latent_space[i]), device=self.device)/len(latent_space[i])))).to(self.device)
                     latent_cond.extend(latent_space_cond.cpu().numpy())
                     
                     # latent_cond.extend((latent_space + latent_space * 5 * torch.sin(target.unsqueeze(1) / (10000 ** (torch.arange(latent_space.size(1), device=latent_space.device).float() / latent_space.size(1)))).to(latent_space.device)).cpu().numpy())
@@ -302,7 +303,7 @@ class ModelEvaluator:
         latent_mean = list(np.mean(latent_all, axis=0))
         latent_std = list(np.std(latent_all, axis=0))
         
-        if cfg.selected_descriptors == "Px_cond":
+        if cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
             latent_cond = np.array(latent_cond)
             # transform latent_all
             latent_cond = pca.transform(latent_cond)
@@ -424,7 +425,7 @@ class ModelEvaluator:
                 output, latent_space = model(data, latent=True)
 
                 # latent space condition
-                if cfg.selected_descriptors == "Px_cond":
+                if cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
                     latent_space_cond = torch.zeros_like(latent_space)
                     for i in range(len(target)):
                         # latent_space[i] = latent_space[i] * torch.ones_like(latent_space[i])*target[i]
@@ -475,7 +476,7 @@ class ModelEvaluator:
         latent_mean = list(np.mean(latent_all, axis=0))
         latent_std = list(np.std(latent_all, axis=0))
         
-        if cfg.selected_descriptors == "Px_cond":
+        if cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
             latent_cond = np.array(latent_cond)
             # transform latent_all
             latent_cond = pca.transform(latent_cond)
@@ -518,12 +519,16 @@ class ModelEvaluator:
         if cfg.extended_descriptors:
             if cfg.selected_descriptors == "Px_cond":
                 return np.array(latent_mean + latent_std + latent_mean_cond + latent_std_cond)
+            elif cfg.selected_descriptors == "Pxy_cond":
+                return np.array(latent_mean + latent_std + latent_mean_cond + latent_std_cond + loss_per_class + loss_per_class_std)
             else:
                 # return np.array(loss_per_class + accuracy_per_class + latent_mean + latent_std)
                 return np.array(loss_per_class + loss_per_class_std + latent_mean + latent_std)
         else:
             if cfg.selected_descriptors == "Px_cond":
                 return np.array(latent_mean + latent_mean_cond)
+            elif cfg.selected_descriptors == "Pxy_cond":
+                return np.array(latent_mean + latent_mean_cond + loss_per_class)
             else:
                 return np.array(loss_per_class + latent_mean)
 

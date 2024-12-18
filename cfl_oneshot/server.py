@@ -145,6 +145,9 @@ class client_descr_scaling:
         elif cfg.selected_descriptors == 'Px_cond':
             self.descriptors_dim = [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors * 2
             self.num_scalers = cfg.n_latent_space_descriptors * 2
+        elif cfg.selected_descriptors == 'Pxy_cond':
+            self.descriptors_dim = [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors * 2 + [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors
+            self.num_scalers = cfg.n_latent_space_descriptors * 2 + cfg.n_metrics_descriptors
         else:
             self.descriptors_dim = [cfg.len_metric_descriptor] * cfg.n_metrics_descriptors + [cfg.len_latent_space_descriptor] * cfg.n_latent_space_descriptors
             self.num_scalers = cfg.n_metrics_descriptors + cfg.n_latent_space_descriptors
@@ -344,6 +347,15 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                                             json.loads(res.metrics["latent_space_std"]) + \
                                             json.loads(res.metrics["latent_space_cond_mean"]) + \
                                             json.loads(res.metrics["latent_space_cond_std"]))
+                    elif cfg.selected_descriptors == "Pxy_cond":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Pxy_cond descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]) + \
+                                            json.loads(res.metrics["latent_space_cond_mean"]) + \
+                                            json.loads(res.metrics["latent_space_cond_std"]) + \
+                                            json.loads(res.metrics["loss_pc_mean"]) + \
+                                            json.loads(res.metrics["loss_pc_std"]))
                 else:    
                     if cfg.selected_descriptors == "Pxy":
                         if res.metrics["cid"] == 1:
@@ -363,6 +375,13 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                             print(f"\033[91mClustering using basic Px_cond descriptors\033[0m")
                         client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
                                             json.loads(res.metrics["latent_space_cond_mean"]))
+                    elif cfg.selected_descriptors == "Pxy_cond":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Pxy_cond descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_cond_mean"]) + \
+                                            json.loads(res.metrics["loss_pc_mean"]))
+                        
                 client_id_plot.append(res.metrics["cid"])
                 client_cid_list.append(proxy.cid)
 
@@ -731,8 +750,8 @@ def main() -> None:
         print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
         cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
         print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
-    elif cfg.selected_descriptors == "Px_cond":
-        cluster_centroids = {label: centroid[cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor:] for label, centroid in cluster_centroids.items()}
+    elif cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
+        cluster_centroids = {label: centroid[:cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor] for label, centroid in cluster_centroids.items()}
         print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n") # only latent space
     else:
         raise ValueError("Invalid selected_descriptors")
@@ -775,9 +794,9 @@ def main() -> None:
         elif cfg.selected_descriptors == "Px":
             descriptors = descriptors[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] # only latent space 
             descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-        elif cfg.selected_descriptors == "Px_cond":
+        elif cfg.selected_descriptors == "Px_cond" or cfg.selected_descriptors == "Pxy_cond":
             descriptors = descriptors_scaler.scale(descriptors.reshape(1,-1))
-            descriptors = descriptors[:, cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor:] # only latent space
+            descriptors = descriptors[:, :cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor] # only latent space
         else:
             raise ValueError("Invalid selected_descriptors")
     
