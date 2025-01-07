@@ -211,6 +211,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         self.aggregated_parameters_global = None
         self.cluster_status = 0 # 0: not started, 1: to cluster, 2: done
         self.n_clusters = 1 # current number of clusters
+        self.real_n_clusters = 1
         self.accuracy_trend = [] # accuracy trend for clustering
 
 
@@ -446,6 +447,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Output the final eps, the number of clusters, and the new labels
                 print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
                 print(f"Cluster labels after reassigning noise points: {cluster_labels}")
+                self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
 
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
@@ -454,6 +456,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
                 # known prior number of clusters
                 n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                self.real_n_clusters = n_clusters
                 
                 # Use Kmeans for supervised clustering
                 clustering = KMeans(n_clusters=n_clusters, random_state=cfg.random_seed)
@@ -828,7 +831,9 @@ def main() -> None:
         "accuracy_known": accuracies_known,
         "average_loss_known": np.mean(losses_known),
         "average_accuracy_known": np.mean(accuracies_known),
-        "time": round((time.time() - start_time)/60, 2)
+        "time": round((time.time() - start_time)/60, 2),
+        "identified_clusters": strategy.n_clusters,
+        "real_clusters": strategy.real_n_clusters,
     }
     np.save(f'results/{exp_path}/test_metrics_fold_{args.fold}.npy', metrics)
     
