@@ -1,20 +1,20 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
+strategy = 'fedavg' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
-n_clients = 3
+n_clients = 10
 n_samples_clients = -1 # if -1, use all samples
 
 # Strategy cfl_oneshot
 cfl_oneshot_CLIENT_SCALING_METHOD = 1 # ['Ours', 'weighted', 'none']
-cfl_oneshot_CLIENT_CLUSTER_METHOD = 5 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers', 'Kmeans_with_prior']
+cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers', 'Kmeans_with_prior']
 extended_descriptors = True #mean and std 
 weighted_metric_descriptors = False
 selected_descriptors = "Px_label_long" # Options: "Px", "Py", "Pxy", "Px_cond", "Pxy_cond", "Px_label_long", "Px_label_short" for training time
-pos_multiplier = 1 # positional embedding multiplier 
+pos_multiplier = 6 # positional embedding multiplier 
 # check_cluster_at_inference = False ALWAYS BOTH  # True if you want to check the cluster at inference time (test-time inference for test drifting-find closest cluster to you), False otherwise (like baselines)
-eps_scaling = 1.0 # for clustering method 4
+eps_scaling = 0.8 # for clustering method 4
 th_round = 0.06 # derivative threshold on accuracy trend for starting clustering (good enough evaluation model)
 
 # Strategy fedprox
@@ -23,7 +23,7 @@ fedprox_proximal_mu = 0.1
 # Dataset settings
 dataset_name = "CIFAR10" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
-non_iid_type = 'feature_condition_skew' # refer to ANDA page for more details
+non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
 plot_clients = False
@@ -54,34 +54,34 @@ plot_clients = False
 # args = {
 #     'set_rotation': True,
 #     'set_color': True,
-#     'rotations':4,
-#     'colors':1,
+#     'rotations':3,
+#     'colors':3,
 # }
 
 # # label_skew_strict
 # args = {
 #     'py_bank': 5,
-#     'client_n_class': 4,
+#     'client_n_class': 5,
 # }
 
 # feature_condition_skew
-args = {
-    'random_mode':True,
-    'mixing_label_number':9, # was 3 for new_config
-    'scaling_label_low':1.0,
-    'scaling_label_high':1.0,
-}
+# args = {
+#     'random_mode':True,
+#     'mixing_label_number':7, # was 3 for new_config
+#     'scaling_label_low':1.0,
+#     'scaling_label_high':1.0,
+# }
 
 # # label_condition_skew
-# args = {
-#         'set_rotation': True,
-#         'set_color': True,
-#         'rotations':4,
-#         'colors':1,
-#         'random_mode':True,
-#         'rotated_label_number':5,
-#         'colored_label_number':5,
-# }
+args = {
+        'set_rotation': True,
+        'set_color': True,
+        'rotations':4,
+        'colors':1,
+        'random_mode':True,
+        'rotated_label_number':5,
+        'colored_label_number':5,
+}
 
 # Training model settings
 model_name = "LeNet5"   # ["LeNet5", "ResNet9"]

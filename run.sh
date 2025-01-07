@@ -72,7 +72,7 @@ if [ "$k_folds" -gt 1 ]; then
     # Averaging the results of all folds
     python public/average_results.py
     # Plot confidence interval plots
-    python public/plots_across_folds.py
+    python public/plots_across_folds.py --dataset "$dataset_name"
 fi
 
 
