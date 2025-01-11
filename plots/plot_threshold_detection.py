@@ -3,17 +3,6 @@ import numpy as np
 import seaborn as sns
 from matplotlib import rcParams
 
-# Optional: Enhance plot aesthetics
-# sns.set(style="whitegrid")
-# plt.rcParams.update({
-#     'font.size': 14,
-#     'figure.figsize': (18, 6),
-#     'axes.labelsize': 16,
-#     'axes.titlesize': 19,
-#     'legend.fontsize': 14,
-#     'xtick.labelsize': 14,
-#     'ytick.labelsize': 14
-# })
 
 # ICML plot settings
 def setup_icml_plot(two_column=False):
@@ -28,11 +17,6 @@ def setup_icml_plot(two_column=False):
         "text.usetex": True,  # Use LaTeX for text rendering
         "font.family": "serif",  # Use serif fonts
         "font.serif": ["Times New Roman"],  # Set font to Times New Roman
-        # "axes.labelsize": 9,  # Font size for axis labels
-        # "axes.titlesize": 9,  # Font size for titles
-        # "legend.fontsize": 4,  # Font size for legends
-        # "xtick.labelsize": 8,  # Font size for x-axis ticks
-        # "ytick.labelsize": 8,  # Font size for y-axis ticks
         
         'font.size': 14,
         'axes.labelsize': 16,
