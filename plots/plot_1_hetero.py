@@ -45,7 +45,7 @@ x = np.linspace(0, 8, 8)  # Generate 4 equally spaced x values
 
 # MNIST Known cluster
 zzz_m_k_p = [0.95868, 0.958179973, 0.955477037, 0.956833643, 0.956691098, 0.957344397, 0.959105845, 0.959330055]
-zzz_m_k = [0.95716, 0.953416221, 0.948753359, 0.935387762, 0.929099246, 0.905346668, 0.877656173, 0.883966582]
+zzz_m_k = [0.95716, 0.953416221, 0.948753359, 0.935387762, 0.934364246, 0.905346668, 0.877656173, 0.883966582]
 fedavg_m_k = [0.930745, 0.893799407, 0.844867348, 0.815645909, 0.809354854, 0.761633144, 0.720145573, 0.693643525]
 ifca_m_k = [0.91445, 0.925200496, 0.897421436, 0.836328798, 0.836385792, 0.795800616, 0.759490609, 0.759953996]
 fedrc_m_k = [0.892665, 0.738156295, 0.532791703, 0.40640604, 0.356091856, 0.305948583, 0.302531365, 0.261487611]
@@ -355,8 +355,8 @@ axes[1,1].plot(x, fedem_f_t, label="FedEM", color="purple", marker='o', markersi
 axes[1,1].plot(x, fesem_f_t, label="FeSEM", color="brown", marker='o', markersize=2)
 axes[1,1].plot(x, feddrift_f_t, label="FedDrift", color="pink", marker='o', markersize=2)
 axes[1,1].plot(x, cfl_f_t, label="CFL", color="cyan", marker='o', markersize=2)
-axes[1,1].plot(x, zzz_f_t, label="Ours", color="blue", marker='o', markersize=2)
-axes[1,1].plot(x, zzz_f_t_p, label="Ours (prior)", color="black", marker='o', markersize=2)
+axes[1,1].plot(x, zzz_f_t, label="ZZZ (Ours)", color="blue", marker='o', markersize=2)
+axes[1,1].plot(x, zzz_f_t_p, label="ZZZ-prior (Ours)", color="black", marker='o', markersize=2)
 axes[1,1].set_xlabel("Heterogeneity Level")
 axes[1,1].set_ylabel("Accuracy (Real Testing Phase)")
 axes[1,1].set_xticks(x)
