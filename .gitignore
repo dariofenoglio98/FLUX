@@ -38,6 +38,9 @@ __pycache__/
 *.jpg
 *.jpeg
 *.gif
+
+# pdf
+*.pdf
  
 # Distribution / packaging
 .Python
