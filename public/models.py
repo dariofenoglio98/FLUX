@@ -177,6 +177,39 @@ def simple_test(model, device, test_loader):
     #       f'({100. * correct / len(test_loader.dataset):.0f}%)\n')
     return test_loss, accuracy
 
+
+def add_dp_noise(data, epsilon, sensitivity=1.0):
+    """
+    Add Laplace noise to 'data' for differential privacy.
+    
+    Parameters:
+    -----------
+    data : list
+        The original data array to which you want to add noise.
+    epsilon : float
+        The privacy parameter; lower values result in more noise.
+    sensitivity : float, optional
+        The sensitivity of the function. By default, it's set to 1.0.
+        
+    Returns:
+    --------
+    list
+        A new array with added Laplace noise.
+    """
+    # to numpy
+    data = np.array(data)
+    
+    # Scale (b) in Laplace distribution = sensitivity / epsilon
+    scale = sensitivity / epsilon
+    
+    # Generate Laplace noise with mean=0 and scale calculated above
+    noise = np.random.laplace(loc=0.0, scale=scale, size=data.shape)
+    
+    # Add the noise to the original data
+    noisy_data = data + noise
+    return list(noisy_data)
+
+
 # ModelEvaluator class
 class ModelEvaluator:
     def __init__(self, test_loader, device):
@@ -300,6 +333,16 @@ class ModelEvaluator:
         pca.fit(random_points)
         # transform latent_all
         latent_all = pca.transform(latent_all)
+        
+        if cfg.differential_privacy_descriptors:
+            random_points_transformed = pca.transform(random_points)
+            global_min = min(np.minimum(latent_all.min(axis=0), random_points_transformed.min(axis=0)))
+            global_max = max(np.maximum(latent_all.max(axis=0), random_points_transformed.max(axis=0)))
+            
+            range_j = global_max - global_min
+            sensitivity = range_j / latent_all.shape[0]
+            print(f"Global min: {global_min}, Global max: {global_max}, Sensitivity: {sensitivity}")
+        
         # Mean and std on first dimension
         latent_mean = list(np.mean(latent_all, axis=0))
         latent_std = list(np.std(latent_all, axis=0))
@@ -411,6 +454,22 @@ class ModelEvaluator:
                                 for i in range(num_classes)]
             accuracy_per_class = [accuracy_per_class[i] / class_counts[i] if class_counts[i] > 0 else accuracy_per_class[i] \
                                 for i in range(num_classes)]            
+            
+
+        # differential privacy on the descriptors
+        if cfg.differential_privacy_descriptors:
+            # Add differential privacy to the descriptors
+            # print(f"Client {client_id} - before {loss_per_class}")
+            loss_per_class = add_dp_noise(loss_per_class, cfg.epsilon, sensitivity)
+            # print(f"Client {client_id} - after {loss_per_class}")
+            loss_per_class_std = add_dp_noise(loss_per_class_std, cfg.epsilon, sensitivity)
+            latent_mean = add_dp_noise(latent_mean, cfg.epsilon, sensitivity)
+            latent_std = add_dp_noise(latent_std, cfg.epsilon, sensitivity)
+            latent_mean_cond = add_dp_noise(latent_mean_cond, cfg.epsilon, sensitivity)
+            latent_std_cond = add_dp_noise(latent_std_cond, cfg.epsilon, sensitivity)
+            latent_mean_by_label = add_dp_noise(latent_mean_by_label, cfg.epsilon, sensitivity)
+            latent_std_by_label = add_dp_noise(latent_std_by_label, cfg.epsilon, sensitivity)
+            
             
 
         res = {
