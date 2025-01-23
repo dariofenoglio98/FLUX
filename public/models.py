@@ -471,7 +471,6 @@ class ModelEvaluator:
             latent_std_by_label = add_dp_noise(latent_std_by_label, cfg.epsilon, sensitivity)
             
             
-
         res = {
             "num_examples_val": len(self.test_loader.dataset),
             "loss_val": float(loss_trad),
