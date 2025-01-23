@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pandas as pd
 import config as cfg
+import argparse
 
 
 def calculate_mean_std_metrics(metrics):
@@ -30,6 +31,10 @@ def calculate_mean_std_metrics(metrics):
         
     return mean_std_metrics
 
+# Get arguments
+parser = argparse.ArgumentParser(description='Generate datasets for ANDA')
+parser.add_argument('--scaling', type=int, default=0, help='scaling num')
+args = parser.parse_args()
 
 # Load metrics from all folds
 metrics = []
@@ -50,6 +55,7 @@ result = calculate_mean_std_metrics(metrics)
 
 # Save the mean metrics to a file
 result_pd = pd.DataFrame(result)
-result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{cfg.args}.xlsx', index=False)
+# result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{cfg.args}.xlsx', index=False)
+result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{args.scaling}_eps{cfg.epsilon}.xlsx', index=False)
 
 
