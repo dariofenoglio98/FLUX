@@ -1,17 +1,17 @@
 # CFL: Clustering-based Federated Learning Framework
 
-**CFL** is a Federated Learning (FL) framework designed for dynamic clustering of clients during training based on their data distribution. This framework aims to enhance the efficiency and accuracy of FL by grouping clients with similar data characteristics. Additionally, CFL addresses data shift and drifting, considering variations in:
+**CFL** is a Federated Learning (FL) framework designed to dynamically cluster clients based on their data distribution, optimizing collaboration and model performance. CFL addresses distribution shifts in FL by ensuring efficient clustering and test-time adaptation, without requiring prior knowledge of client distributions.
 
-- \(P(x)\): Distribution of inputs
-- \(P(y)\): Distribution of labels
-- \(P(x|y)\): Conditional distribution of inputs given labels
-- \(P(y|x)\): Conditional distribution of labels given inputs
+## Key Features
+- **Unsupervised Client Clustering:** Clients are grouped dynamically using descriptor extraction and clustering, handling all four common types of distribution shifts:
+  - Feature distribution shift: The marginal distributions \(P(X)\) vary across clients.
+  - Label distribution shift: The marginal distributions \(P(Y)\) vary across clients.
+  - Concept shift (Same features, different label): The conditional distributions \(P(Y|X)\) vary across clients.
+  - Concept shift (Same label, different features): The conditional distributions \(P(X|Y)\) vary across clients.
 
-## Features
+- **Test-Time Adaptation:** Enables unseen and unlabeled clients to be assigned to the most suitable cluster-specific model during inference.
+- **Scalability & Efficiency:** Maintains low communication and computational overhead, making it practical for large-scale FL deployments.
 
-- **Dynamic Client Clustering**: Clients are clustered during training based on their data distribution, optimizing collaboration and model convergence.
-- **Data Shift & Drift Handling**: Adapts to data shifts across clients by considering the distributional changes in both input and output spaces (See ANDA for more information).
-- **Scalable FL Framework**: Designed to scale across large numbers of clients while maintaining computation and communication efficiency.
 
 ## Installation
 
@@ -29,11 +29,15 @@
     pip install -r requirements.txt
     ```
 
-## Usage - Tutorial
-
 ## Run Experiments
+Set desired training configuration in 'public/config.py'. 
+Run: 
+```
+bash run.sh 
+```
 
 ## License
 This project is licensed under the MIT License – see the LICENSE.md file for details.
 
 ## Citation
+...
