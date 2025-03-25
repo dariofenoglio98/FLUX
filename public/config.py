@@ -1,5 +1,5 @@
 # Overall settings
-k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
+k_folds = 1 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'cfl_oneshot' # ['fedavg', 'fedprox', 'cfl_oneshot', 'cfl_drift', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
@@ -7,7 +7,7 @@ n_clients = 10
 n_samples_clients = -1 # if -1, use all samples
 
 # differential privacy on the descriptors
-differential_privacy_descriptors = True
+differential_privacy_descriptors = False
 epsilon = 1.0
 # sensitivity = 1.0 # automatically calculated
 
@@ -26,7 +26,7 @@ th_round = 0.06 # derivative threshold on accuracy trend for starting clustering
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "CIFAR100" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'feature_skew_strict' # ['feature_skew_strict', 'label_skew_strict', 'feature_condition_skew', 'label_condition_skew'] refer to ANDA page for more details
 verbose = True
@@ -38,8 +38,8 @@ plot_clients = False
 args = {
     'set_rotation': True,
     'set_color': True,
-    'rotations':4,
-    'colors':1,
+    'rotations':5,
+    'colors':3,
 }
 
 # # LABEL DISTRIBUTION SHIFT P(Y) - (label_skew_strict)
@@ -68,11 +68,11 @@ args = {
 # }
 
 # Training model settings
-model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
+model_name = "ResNet9"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 20
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
