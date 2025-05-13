@@ -17,7 +17,7 @@ def setup_icml_plot(two_column=False):
         "font.serif": ["Times New Roman"],  # Set font to Times New Roman
         "axes.labelsize": 9,  # Font size for axis labels
         "axes.titlesize": 9,  # Font size for titles
-        "legend.fontsize": 4,  # Font size for legends
+        "legend.fontsize": 5.3,  # Font size for legends
         "xtick.labelsize": 8,  # Font size for x-axis ticks
         "ytick.labelsize": 8,  # Font size for y-axis ticks
  
@@ -72,6 +72,9 @@ fedem_no = [0.75658316, 0.326672057, 0.292381201, 0.299923074]
 fesem_no = [0.826859755, 0.754151627, 0.72082539, 0.684889664]
 feddrift_no = [0.974798979, 0.703695, 0.821747047, np.nan]
 cfl_no = [0.841760555, 0.6391775, 0.671624971, np.nan]
+pfedme_no = [0.964130629, 0.892078941, 0.8905918, 0.890564124]
+apfl_no = [0.96157583, 0.894120361, 0.893479248, 0.892850844]
+
 
 std_zzz_no_p = [0.002245121, 0.004713994, 0.003961318, 0.00329857]
 std_zzz_no = [0.020178264, 0.031774986, 0.035534008, 0.029971903]
@@ -82,7 +85,8 @@ std_fedem_no = [0.027751589, 0.026812692, 0.037942305, 0.029208152]
 std_fesem_no = [0.04587346, 0.032393998, 0.016258832, 0.01381074]
 std_feddrift_no = [0.001993407, 0.035090051, 0.032772943, np.nan]
 std_cfl_no = [0.016459322, 0.017586889, 0.020399327, np.nan]
- 
+std_pfedme_no = [0.001705483, 0.007133394, 0.007252785, 0.005310882]
+std_apfl_no = [0.002680462, 0.006243131, 0.005652831, 0.005827524]
  
 # Data load real inference
 # zzz_p = [0.956716217, 0.879598748, 0.847792465, 0.843035426]
@@ -114,6 +118,8 @@ fedem = [0.752704081, 0.36899784, 0.32267421, 0.339273023]
 fesem = [0.768386273, 0.746337983, 0.7063584, 0.708714788]
 feddrift = [0.556212845, 0.629115056, 0.519060594, np.nan]
 cfl = [0.887074074, 0.648354222, 0.718713294, np.nan]
+apfl = [0.857838052, 0.731820172, 0.721042313, 0.718308901]
+atp = [0.888200331, 0.704093926, 0.696476676, 0.693141729]
 
 std_zzz_p = [0.002471103, 0.01665148, 0.014192074, 0.0207911]
 std_zzz = [0.015375, 0.021809282, 0.016003587, 0.021838005]
@@ -124,6 +130,9 @@ std_fedem = [0.024121479, 0.026784699, 0.042449158, 0.02081338]
 std_fesem = [0.042339274, 0.018881085, 0.015327673, 0.014635534]
 std_feddrift = [0.029962109, 0.024597799, 0.025541083, np.nan]
 std_cfl = [0.011792477, 0.024528729, 0.022797711, np.nan]
+std_apfl = [0.020382406, 0.025380223, 0.020756352, 0.0218886]
+std_atp = [0.012232058, 0.020971206, 0.021308673, 0.018969514]
+
 
 # TIME
 # zzz_t_p = [4.486875235, 6.392059776, 8.084011098, 9.148540136]
@@ -145,6 +154,9 @@ fedem_t = [214.8675, 911.5175, 4027.313344, 3461.43]
 fesem_t = [95.8625, 331.0375, 1011.715, 1268.5775]
 feddrift_t = [247, 16265.5725, 82785.41664, np.nan]
 cfl_t = [186.525, 16723.075, 77307.03053, np.nan]
+pfedme_t = [49.135, 121.353, 216.693025, 523.22775]
+apfl_t = [148.03, 292.405, 635.9975, 1272.2325]
+atp_t = [28.21825, 108.05, 210.73425, 519.9004625]
 
 std_zzz_t_p = [3.961963244, 1.564696456, 20.32033403, 17.43486951]
 std_zzz_t = [4.296827318, 5.673486582, 55.6137928, 60.64172697]
@@ -155,6 +167,9 @@ std_fedem_t = [21.26665759, 94.64437516, 1528.619042, 190.6309528]
 std_fesem_t = [8.128303944, 59.67706406, 89.8873164, 189.2480988]
 std_feddrift_t = [27.26059427, 3413.589585, 12594.12174, np.nan]
 std_cfl_t = [23.82771496, 4262.829965, 8521.717811, np.nan]
+std_pfedme_t = [1.335, 1.5875, 3.165, 5.18]
+std_apfl_t = [3.5475, 4.595, 13.845, 40.4425]
+std_atp_t = [0.9695, 4.9415, 20.51075, 11.16025]
 
 
 # Transform time means into powers of 2
@@ -167,6 +182,9 @@ fedem_t_log2 = np.log2(fedem_t)
 fesem_t_log2 = np.log2(fesem_t)
 feddrift_t_log2 = [np.log2(val) if val is not np.nan else np.nan for val in feddrift_t]
 cfl_t_log2 = [np.log2(val) if val is not np.nan else np.nan for val in cfl_t]
+pfedme_t_log2 = np.log2(pfedme_t)
+apfl_t_log2 = np.log2(apfl_t)
+atp_t_log2 = np.log2(atp_t)
 
 # Transform time standard deviations into powers of 2
 std_zzz_t_p_log2 = [np.log2(val) if np.log2(val) > 0 else 0 for val in std_zzz_t_p]
@@ -178,6 +196,8 @@ std_fedem_t_log2 = [np.log2(val) if np.log2(val) > 0 else 0 for val in std_fedem
 std_fesem_t_log2 = [np.log2(val) if np.log2(val) > 0 else 0 for val in std_fesem_t]
 std_feddrift_t_log2 = [np.log2(val) if val is not np.nan and np.log2(val) > 0 else 0 for val in std_feddrift_t]
 std_cfl_t_log2 = [np.log2(val) if val is not np.nan and np.log2(val) > 0 else 0 for val in std_cfl_t]
+std_pfedme_t_log2 = [np.log2(val) if np.log2(val) > 0 else 0 for val in std_pfedme_t]
+std_apfl_t_log2 = [np.log2(val) if np.log2(val) > 0 else 0 for val in std_apfl_t]
 
 
  
@@ -209,6 +229,10 @@ axes[0].errorbar(x, feddrift_no, yerr=std_feddrift_no, label="_nolegend_", color
                  elinewidth=0.8, capsize=2, alpha=0.2, ecolor="pink")
 axes[0].errorbar(x, cfl_no, yerr=std_cfl_no, label="_nolegend_", color="cyan", marker="o", markersize=2,
                  elinewidth=0.8, capsize=2, alpha=0.2, ecolor="cyan")
+axes[0].errorbar(x, pfedme_no, yerr=std_pfedme_no, label="_nolegend_", color="darkgoldenrod", marker="o", markersize=2,
+                    elinewidth=0.8, capsize=2, alpha=0.2, ecolor="darkgoldenrod")
+axes[0].errorbar(x, apfl_no, yerr=std_apfl_no, label="_nolegend_", color="teal", marker="o", markersize=2,
+                    elinewidth=0.8, capsize=2, alpha=0.2, ecolor="teal")
 axes[0].plot(x, fedavg_no, label="FedAvg", color="orange", marker='o', markersize=2)
 axes[0].plot(x, ifca_no, label="IFCA", color="green", marker='o', markersize=2)
 axes[0].plot(x, fedrc_no, label="FedRC", color="red", marker='o', markersize=2)
@@ -216,6 +240,8 @@ axes[0].plot(x, fedem_no, label="FedEM", color="purple", marker='o', markersize=
 axes[0].plot(x, fesem_no, label="FeSEM", color="brown", marker='o', markersize=2)
 axes[0].plot(x, feddrift_no, label="FedDrift", color="pink", marker='o', markersize=2)
 axes[0].plot(x, cfl_no, label="CFL", color="cyan", marker='o', markersize=2)
+axes[0].plot(x, pfedme_no, label="pFedMe", color="darkgoldenrod", marker='o', markersize=2)
+axes[0].plot(x, apfl_no, label="APFL", color="teal", marker='o', markersize=2)
 axes[0].plot(x, zzz_no, label="FLUX", color="blue", marker='o', markersize=2)
 axes[0].plot(x, zzz_no_p, label="FLUX-prior", color="black", marker='o', markersize=2)
 axes[0].set_title("Known Association")
@@ -224,7 +250,7 @@ axes[0].set_ylabel("Accuracy")
 axes[0].set_xticks(x)
 axes[0].set_xticklabels([5, 25, 50, 100])
 axes[0].set_ylim(0.2, 1)
-axes[0].legend(loc="lower left")
+# axes[0].legend(loc="lower left")
  
 # Plot testing phase inference
 axes[1].errorbar(x, zzz_p, yerr=std_zzz_p, label="_nolegend_", color="black", marker="o", markersize=2,
@@ -245,6 +271,10 @@ axes[1].errorbar(x, feddrift, yerr=std_feddrift, label="_nolegend_", color="pink
                  elinewidth=0.8, capsize=2, alpha=0.2, ecolor="pink")
 axes[1].errorbar(x, cfl, yerr=std_cfl, label="_nolegend_", color="cyan", marker="o", markersize=2,
                  elinewidth=0.8, capsize=2, alpha=0.2, ecolor="cyan")
+axes[1].errorbar(x, apfl, yerr=std_apfl, label="_nolegend_", color="teal", marker="o", markersize=2,
+                    elinewidth=0.8, capsize=2, alpha=0.2, ecolor="teal")
+axes[1].errorbar(x, atp, yerr=std_atp, label="_nolegend_", color="gold", marker="o", markersize=2,
+                    elinewidth=0.8, capsize=2, alpha=0.2, ecolor="gold")
 axes[1].plot(x, fedavg, label="FedAvg", color="orange", marker='o', markersize=2)
 axes[1].plot(x, ifca, label="IFCA", color="green", marker='o', markersize=2)
 axes[1].plot(x, fedrc, label="FedRC", color="red", marker='o', markersize=2)
@@ -252,6 +282,8 @@ axes[1].plot(x, fedem, label="FedEM", color="purple", marker='o', markersize=2)
 axes[1].plot(x, fesem, label="FeSEM", color="brown", marker='o', markersize=2)
 axes[1].plot(x, feddrift, label="FedDrift", color="pink", marker='o', markersize=2)
 axes[1].plot(x, cfl, label="CFL", color="cyan", marker='o', markersize=2)
+axes[1].plot(x, apfl, label="APFL", color="teal", marker='o', markersize=2)
+axes[1].plot(x, atp, label="AT-PFL", color="gold", marker='o', markersize=2)
 axes[1].plot(x, zzz, label="FLUX", color="blue", marker='o', markersize=2)
 axes[1].plot(x, zzz_p, label="FLUX-prior", color="black", marker='o', markersize=2)
 axes[1].set_title("Test Phase")
@@ -260,7 +292,7 @@ axes[1].set_ylabel("Accuracy")
 axes[1].set_xticks(x)
 axes[1].set_xticklabels([5, 25, 50, 100])
 axes[1].set_ylim(0.2, 1)
-axes[1].legend(loc="lower left")
+# axes[1].legend(loc="lower left")
  
  
 # Plot Time
@@ -271,6 +303,9 @@ axes[2].plot(x, fedem_t_log2, label="FedEM", color="purple", marker='o', markers
 axes[2].plot(x, fesem_t_log2, label="FeSEM", color="brown", marker='o', markersize=2)
 axes[2].plot(x, feddrift_t_log2, label="FedDrift", color="pink", marker='o', markersize=2)
 axes[2].plot(x, cfl_t_log2, label="CFL", color="cyan", marker='o', markersize=2)
+axes[2].plot(x, pfedme_t_log2, label="pFedMe", color="darkgoldenrod", marker='o', markersize=2)
+axes[2].plot(x, apfl_t_log2, label="APFL", color="teal", marker='o', markersize=2)
+axes[2].plot(x, atp_t_log2, label="AT-PFL", color="gold", marker='o', markersize=2)
 axes[2].plot(x, zzz_t_log2, label="FLUX", color="blue", marker='o', markersize=2)
 axes[2].plot(x, zzz_t_p_log2, label="FLUX-prior", color="black", marker='o', markersize=2)
 axes[2].set_title("Training Time")
@@ -283,7 +318,7 @@ y_ticks = [4, 6,8,10,12,14 ,16,18]  # Actual powers of 2 in your data
 axes[2].set_yticks(y_ticks)
 axes[2].set_yticklabels([r"$2^{4}$", r"$2^{6}$", r"$2^{8}$", r"$2^{10}$", r"$2^{12}$", r"$2^{14}$", r"$2^{16}$", r"$2^{18}$"])  # LaTeX power notation
  
-axes[2].legend(loc="upper left")
+# axes[2].legend(loc="upper left")
 
 # Plot Time (log2-transformed with error bars)
 # axes[2].errorbar(x, fedavg_t_log2, yerr=std_fedavg_t_log2, label="_nolegend_", color="orange", marker="o", markersize=2,
@@ -324,7 +359,28 @@ axes[2].legend(loc="upper left")
 # axes[2].set_yticklabels([r"$2^{4}$", r"$2^{6}$", r"$2^{8}$", r"$2^{10}$", r"$2^{12}$", r"$2^{14}$", r"$2^{16}$", r"$2^{18}$"])
 # axes[2].legend(loc="upper right")
  
+
+# Instead, collect all handles & labels from both axes:
+handles, labels = [], []
+for ax in axes:
+    h_list, l_list = ax.get_legend_handles_labels()
+    for h, l in zip(h_list, l_list):
+        if l not in labels:
+            handles.append(h)
+            labels.append(l)
+
+# place one legend slightly closer to the plots
+fig.legend(handles, labels,
+           loc="center left",
+           bbox_to_anchor=(0.89, 0.55),
+           borderaxespad=0,
+           frameon=True)
+
+# make room for that legend (extend rect width to 0.9)
+plt.tight_layout(rect=[0, 0, 0.9, 1])
+ 
+
 # Adjust layout
-plt.tight_layout()
-plt.savefig("N_clients.pdf", bbox_inches="tight")
+# plt.tight_layout()
+plt.savefig("/Users/dariofenoglio/Desktop/N_clients.pdf", bbox_inches="tight")
 plt.show()
