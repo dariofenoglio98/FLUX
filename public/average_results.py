@@ -34,6 +34,7 @@ def calculate_mean_std_metrics(metrics):
 # Get arguments
 parser = argparse.ArgumentParser(description='Generate datasets for ANDA')
 parser.add_argument('--scaling', type=int, default=0, help='scaling num')
+parser.add_argument('--non_iid_type', type=str, default=cfg.drifting_type, help='Drifting type')
 args = parser.parse_args()
 
 # Load metrics from all folds
@@ -56,6 +57,6 @@ result = calculate_mean_std_metrics(metrics)
 # Save the mean metrics to a file
 result_pd = pd.DataFrame(result)
 # result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{cfg.args}.xlsx', index=False)
-result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{args.scaling}_eps{cfg.epsilon}.xlsx', index=False)
+result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{args.non_iid_type}_{args.scaling}_eps{cfg.epsilon}.xlsx', index=False)
 
 

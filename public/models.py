@@ -123,6 +123,8 @@ def simple_train(model, device, train_loader, optimizer, epoch, client_id=None):
     loss_list = []
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
+        data = data.type(torch.float32)
+        target = target.type(torch.long)
         optimizer.zero_grad()
         output = model(data)
         loss = F.cross_entropy(output, target)
@@ -166,6 +168,8 @@ def simple_test(model, device, test_loader):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
+            data = data.type(torch.float32)
+            target = target.type(torch.long)
             output = model(data)
             test_loss += F.cross_entropy(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
@@ -727,6 +731,8 @@ class ModelEvaluator:
         with torch.no_grad():
             for data, target in self.test_loader:
                 data, target = data.to(self.device), target.to(self.device)
+                data = data.type(torch.float32)
+                target = target.type(torch.long)
                 
                 output, latent_space = model(data, latent=True)
                 latent_all.extend(latent_space.cpu().numpy())

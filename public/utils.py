@@ -41,7 +41,8 @@ def plot_loss_and_accuracy(
         loss: List[float],
         accuracy: List[float],
         show: bool = True,
-        fold=0):
+        fold=0,
+        non_iid_type='label_skew_strict'):
     
     # # Plot loss separately
     plt.figure(figsize=(12, 6))
@@ -56,7 +57,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the loss plot
-    loss_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
+    loss_plot_path = f"images/{cfg.default_path}/{non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(loss_plot_path)
     if show:
         plt.show()
@@ -76,7 +77,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the accuracy plot
-    accuracy_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
+    accuracy_plot_path = f"images/{cfg.default_path}/{non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(accuracy_plot_path)
     if show:
         plt.show()
@@ -144,7 +145,7 @@ def get_in_channels():
             break
     cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
 
-    return 3 if len(cur_features.size()) == 4 else 1
+    return 3 if len(cur_features.shape) == 4 else 1
 
 def set_seed(seed):
     # Set seed for torch
@@ -168,7 +169,8 @@ def set_seed(seed):
 def calculate_centroids(data: np.ndarray,
                         clustering_method,
                         cluster_labels,
-                        save=True):
+                        save=True,
+                        non_iid_type='label_skew_strict'):
     """
     Calculate the centroids of the clusters.
     
@@ -200,7 +202,7 @@ def calculate_centroids(data: np.ndarray,
     # print(f"Centroids: {centroids_dict}")
     if save:
         path = f"results/{cfg.default_path}"
-        np.save(f"{path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
+        np.save(f"{path}/centroids_{non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
     
     return centroids_dict
 

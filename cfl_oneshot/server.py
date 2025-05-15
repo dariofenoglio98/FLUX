@@ -200,8 +200,9 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model, path, descriptors_scaler, *args, **kwargs):
+    def __init__(self, model, path, descriptors_scaler, args_main, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.args_main = args_main
         self.model = model # used for saving checkpoints
         self.path = path # saving model path
         self.descriptors_scaler = descriptors_scaler # used for scaling client descriptors
@@ -392,7 +393,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 clustering = KMeans(n_clusters=best_n_clusters, random_state=cfg.random_seed)
                 cluster_labels = clustering.fit_predict(client_descr)
                 # Calculate and save centroids
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
 
             # DBSCAN
@@ -402,7 +403,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 if min(cluster_labels) < 0: # -1 is for outliers
                     cluster_labels = cluster_labels + abs(min(cluster_labels)) # TODO wrong, outliers are not the same cluster
                 # Calculate and save centroids
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             # HDBSCAN
@@ -413,7 +414,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 if min(cluster_labels) < 0: # -1 is for outliers
                     cluster_labels = cluster_labels + abs(min(cluster_labels))
                 # Calculate and save centroids
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
 
             # DBSCAN_no_outliers
@@ -449,7 +450,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 print(f"Cluster labels after reassigning noise points: {cluster_labels}")
                 self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
 
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
 
             # DBSCAN_no_outliers
@@ -462,7 +463,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 clustering = KMeans(n_clusters=n_clusters, random_state=cfg.random_seed)
                 cluster_labels = clustering.fit_predict(client_descr)
                 # Calculate and save centroids
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
             
             else:
@@ -473,7 +474,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
             # Save cluster labels
             cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
-            np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
+            np.save(f'results/{self.path}/cluster_labels_inference_{self.args_main.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
             # print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
 
@@ -540,7 +541,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
                 self.model.load_state_dict(state_dict, strict=True)
                 # Overwrite the model
-                torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{cl}.pth")
+                torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{self.args_main.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{cl}.pth")
         # Not yet clustered, save global model
         else:
             print(f"Saving round {server_round} aggregated_parameters...")
@@ -550,7 +551,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             self.model.load_state_dict(state_dict, strict=True)
             # Overwrite the model 
-            torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth")
+            torch.save(self.model.state_dict(), f"checkpoints/{self.path}/{self.args_main.non_iid_type}_n_clients_{cfg.n_clients}_server.pth")
         
         return self.aggregated_parameters_global, aggregated_metrics
    
@@ -673,6 +674,7 @@ def main() -> None:
     # Get arguments
     parser = argparse.ArgumentParser(description='Clustered Federated Learning - Server')
     parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
+    parser.add_argument('--non_iid_type', type=str, default='non_iid', help='Type of non-iid data distribution')
     args = parser.parse_args()
 
     utils.set_seed(cfg.random_seed + args.fold)
@@ -699,6 +701,7 @@ def main() -> None:
         evaluate_metrics_aggregation_fn=weighted_average,
         on_fit_config_fn=fit_config,
         on_evaluate_config_fn=fit_config,
+        args_main=args,
     )
 
     # Start Flower server for three rounds of federated learning
@@ -721,10 +724,10 @@ def main() -> None:
     utils.plot_all_clients_metrics(fold=args.fold)
 
     # Plots and Evaluation the model on the client datasets
-    best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False, fold=args.fold)
+    best_loss_round, best_acc_round = utils.plot_loss_and_accuracy(loss, accuracy, show=False, fold=args.fold, non_iid_type=args.non_iid_type)
     
     # Read cluster centroids from json - for test-time inference
-    cluster_centroids = np.load(f'results/{exp_path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    cluster_centroids = np.load(f'results/{exp_path}/centroids_{args.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
     if cfg.selected_descriptors == "Pxy":
         cluster_centroids = {label: centroid[cfg.n_metrics_descriptors*cfg.len_metric_descriptor:] for label, centroid in cluster_centroids.items()} # only latent space
         print(f"\033[93mCluster centroids: {cluster_centroids}\033[0m\n")
@@ -733,7 +736,7 @@ def main() -> None:
     elif cfg.selected_descriptors == "Py":
         # print in red color
         print(f"\033[93mYou cannot use Py at inference, dummy guy! I will read cluster assignement during training for inference\033[0m\n")
-        cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+        cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{args.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
         print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
     elif cfg.selected_descriptors in ["Px_cond", "Pxy_cond", "Px_label_long", "Px_label_short"]:
         cluster_centroids = {label: centroid[:cfg.n_latent_space_descriptors*cfg.len_latent_space_descriptor] for label, centroid in cluster_centroids.items()}
@@ -741,14 +744,14 @@ def main() -> None:
     else:
         raise ValueError("Invalid selected_descriptors")
     # Read cluster assignement during training for inference (known)
-    cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
+    cluster_labels_inference = np.load(f'results/{exp_path}/cluster_labels_inference_{args.non_iid_type}_n_clients_{cfg.n_clients}.npy', allow_pickle=True).item()
     print(f"\033[93mRead cluster assignement during training for inference\033[0m\n")
     print(f"\033[93mCluster labels: {cluster_labels_inference}\033[0m\n")
     
     # Load global model for evaluation
     evaluation_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-    evaluation_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
+    evaluation_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{args.non_iid_type}_n_clients_{cfg.n_clients}_server.pth", weights_only=False))
 
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
@@ -791,7 +794,7 @@ def main() -> None:
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                         input_size=cfg.input_size).to(device)
-        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
+        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{args.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
         
         # Evaluate
         loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)
@@ -806,7 +809,7 @@ def main() -> None:
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                         input_size=cfg.input_size).to(device)
-        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{cfg.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
+        cluster_model.load_state_dict(torch.load(f"checkpoints/{exp_path}/{args.non_iid_type}_n_clients_{cfg.n_clients}_cluster_{client_cluster}.pth", weights_only=False))
         
         # Evaluate
         loss_test, accuracy_test = models.simple_test(cluster_model, device, test_loader)

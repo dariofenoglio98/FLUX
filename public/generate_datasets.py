@@ -15,6 +15,7 @@ from ANDA import anda
 parser = argparse.ArgumentParser(description='Generate datasets for ANDA')
 parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
 parser.add_argument('--scaling', type=int, default=0, help='Data scaler')
+parser.add_argument('--non_iid_type', type=str, default=cfg.drifting_type, help='Drifting type')
 args = parser.parse_args()
 
 # valid dataset names
@@ -28,7 +29,7 @@ anda_dataset = []
 
 # special static mode using unique fn
 if cfg.drifting_type == 'static':
-    assert cfg.non_iid_type in ['feature_skew',
+    assert args.non_iid_type in ['feature_skew',
                                 'label_skew',
                                 'feature_condition_skew',
                                 'label_condition_skew',
@@ -47,37 +48,31 @@ if cfg.drifting_type == 'static':
     ], "Non-IID type not supported in static mode! Please check the ANDA page for more details."
     
         # Data
-    if cfg.non_iid_type == 'feature_skew_strict':
+    if args.non_iid_type == 'feature_skew_strict':
         print(f"scaling {args.scaling}")
         if args.scaling == 1:
             cur_rot = 2
             cur_col = 1
         elif args.scaling == 2:
-            cur_rot = 2
-            cur_col = 3
-        elif args.scaling == 3:
             cur_rot = 3
+            cur_col = 1
+        elif args.scaling == 3:
+            cur_rot = 4
             cur_col = 1
         elif args.scaling == 4:
+            cur_rot = 5
+            cur_col = 1
+        elif args.scaling == 5:
+            cur_rot = 2
+            cur_col = 3
+        elif args.scaling == 6:
             cur_rot = 3
             cur_col = 3
-        elif args.scaling == 5:
-            cur_rot = 4
-            cur_col = 1
-        elif args.scaling == 6:
+        elif args.scaling == 7:
             cur_rot = 4
             cur_col = 3
-        elif args.scaling == 7:
-            cur_rot = 5
-            cur_col = 1
         elif args.scaling == 8:
             cur_rot = 5
-            cur_col = 3
-        elif args.scaling == 9:
-            cur_rot = 6
-            cur_col = 1
-        elif args.scaling == 10:
-            cur_rot = 6
             cur_col = 3
         else:
             raise KeyError
@@ -90,7 +85,8 @@ if cfg.drifting_type == 'static':
             'colors':cur_col,
         }
 
-    elif cfg.non_iid_type == 'label_skew_strict':
+    elif args.non_iid_type == 'label_skew_strict':
+        # cur_class = (11 - args.scaling)*10 # CIFAR100
         cur_class = 11 - args.scaling
         print(f"Class: {cur_class}")
     
@@ -99,22 +95,26 @@ if cfg.drifting_type == 'static':
             'py_bank':5,
         }
 
-    elif cfg.non_iid_type == 'feature_condition_skew':
+    elif args.non_iid_type == 'label_condition_skew':
         print(f"Mix {args.scaling}")
         cur_args = {
             'random_mode':True,
-            'mixing_label_number':args.scaling,
+            # 'mixing_label_number': args.scaling*10+20, # CIFAR100
+            'mixing_label_number': args.scaling,
             'scaling_label_low':1.0,
             'scaling_label_high':1.0,
         }
 
-    elif cfg.non_iid_type == 'label_condition_skew':        
+    elif args.non_iid_type == 'feature_condition_skew':        
+        # cur_class = args.scaling*10 # CIFAR100
         cur_class = args.scaling 
         print(f"Class: {cur_class}")
     
         cur_args = {
             'set_rotation': True,
             'set_color': True,
+            # 'rotations':3, # CIFAR100
+            # 'colors':3, # CIFAR100
             'rotations':4,
             'colors':1,
             'random_mode':True,
@@ -125,7 +125,7 @@ if cfg.drifting_type == 'static':
     anda_dataset = anda.load_split_datasets(
         dataset_name = cfg.dataset_name,
         client_number = cfg.n_clients,
-        non_iid_type = cfg.non_iid_type,
+        non_iid_type = args.non_iid_type,
         mode = "manual",
         verbose = cfg.verbose,
         count_labels=cfg.count_labels,
@@ -134,12 +134,13 @@ if cfg.drifting_type == 'static':
         # **cfg.args
         **cur_args
     )
+    
 elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR_teND']:
     # dynamic mode using same fn
     anda_dataset = anda.load_split_datasets_dynamic(
         dataset_name = cfg.dataset_name,
         client_number = cfg.n_clients,
-        non_iid_type = cfg.non_iid_type,
+        non_iid_type = args.non_iid_type,
         drfting_type = cfg.drifting_type,
         verbose = cfg.verbose,
         count_labels=cfg.count_labels,
