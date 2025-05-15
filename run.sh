@@ -9,7 +9,9 @@ n_clients=$(python -c "from public.config import n_clients; print(n_clients)")
 n_rounds=$(python -c "from public.config import n_rounds; print(n_rounds)")
 
 
-non_iid_type='feature_skew_strict' # P(X)
+
+# P(X)
+non_iid_type='feature_skew_strict' 
 for scaling in $(seq 1 8); do
 
     echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
@@ -73,7 +75,8 @@ done
 
 
 
-non_iid_type='label_skew_strict' # P(Y)
+# P(Y)
+non_iid_type='label_skew_strict' 
 for scaling in $(seq 1 8); do
 
     echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
@@ -137,10 +140,8 @@ done
 
 
 
-
-
-
-non_iid_type='label_condition_skew' # P(Y|X)
+ # P(Y|X)
+non_iid_type='label_condition_skew'
 for scaling in $(seq 1 8); do
 
     echo -e "\n\033[1;36mExperiment settings:\033[0m\n\033[1;36m \
@@ -204,12 +205,7 @@ done
 
 
 
-
-
-
-
-
-
+# P(X|Y)
 non_iid_type='feature_condition_skew'
 for scaling in $(seq 1 8); do
 
