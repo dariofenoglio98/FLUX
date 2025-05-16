@@ -32,7 +32,7 @@ for scaling in $(seq 1 8); do
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
         if [ "$dataset_name" == "CheXpert" ]; then
-            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
         else
             python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         fi
@@ -101,7 +101,7 @@ for scaling in $(seq 1 8); do
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
         if [ "$dataset_name" == "CheXpert" ]; then
-            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
         else
             python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         fi
@@ -156,7 +156,7 @@ for scaling in $(seq 1 8); do
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
         if [ "$dataset_name" == "CheXpert" ]; then
-            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
         else
             python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         fi
@@ -211,7 +211,7 @@ for scaling in $(seq 1 8); do
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
         if [ "$dataset_name" == "CheXpert" ]; then
-            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
         else
             python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         fi
