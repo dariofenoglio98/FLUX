@@ -139,13 +139,16 @@ def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, serv
 
 # Get cur dataset in_channels
 def get_in_channels():
-    for file_name in ['../data/cur_datasets/client_1.npy', '../data/cur_datasets/client_1_round_-1.npy']:
-        if os.path.exists(file_name):
-            cur_data = np.load(file_name, allow_pickle=True).item()
-            break
-    cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
+    if cfg.dataset_name == "CheXpert":
+        return 1
+    else:
+        for file_name in ['../data/cur_datasets/client_1.npy', '../data/cur_datasets/client_1_round_-1.npy']:
+            if os.path.exists(file_name):
+                cur_data = np.load(file_name, allow_pickle=True).item()
+                break
+        cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
 
-    return 3 if len(cur_features.shape) == 4 else 1
+        return 3 if len(cur_features.shape) == 4 else 1
 
 def set_seed(seed):
     # Set seed for torch
@@ -187,12 +190,12 @@ def calculate_centroids(data: np.ndarray,
     """
     
     # Kmeans
-    if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1 or cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
+    if cfg.CLIENT_CLUSTER_METHOD == 1 or cfg.CLIENT_CLUSTER_METHOD == 5:
         centroids = clustering_method.cluster_centers_
         centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
     
     # DBSCAN and HDBSCAN, DBSCAN_no_outliers
-    elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD in [2, 3, 4]:
+    elif cfg.CLIENT_CLUSTER_METHOD in [2, 3, 4]:
         centroids_dict = {}
         for label in np.unique(cluster_labels):
             cluster_points = data[cluster_labels == label]
@@ -250,4 +253,3 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fol
         plt.show()
     else:
         plt.close()
-        

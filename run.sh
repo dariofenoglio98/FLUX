@@ -31,7 +31,11 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        if [ "$dataset_name" == "CheXpert" ]; then
+            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+        else
+            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        fi
 
         cd "$strategy"
         python server.py --fold "$fold" &
@@ -96,7 +100,11 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        if [ "$dataset_name" == "CheXpert" ]; then
+            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+        else
+            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        fi
 
         cd "$strategy"
         python server.py --fold "$fold" &
@@ -123,20 +131,6 @@ for scaling in $(seq 1 8); do
         sleep 2
 
     done
-
-    # K-Fold evaluation, if k_folds > 1
-    if [ "$k_folds" -gt 1 ]; then
-
-        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
-        # Averaging the results of all folds
-        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
-        # Plot confidence interval plots
-        # python public/plots_across_folds.py --dataset "$dataset_name"
-    fi
-
-    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
-
-done
 
 
 
@@ -161,7 +155,11 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        if [ "$dataset_name" == "CheXpert" ]; then
+            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+        else
+            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        fi
 
         cd "$strategy"
         python server.py --fold "$fold" &
@@ -188,20 +186,6 @@ for scaling in $(seq 1 8); do
         sleep 2
 
     done
-
-    # K-Fold evaluation, if k_folds > 1
-    if [ "$k_folds" -gt 1 ]; then
-
-        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
-        # Averaging the results of all folds
-        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
-        # Plot confidence interval plots
-        # python public/plots_across_folds.py --dataset "$dataset_name"
-    fi
-
-    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
-
-done
 
 
 
@@ -226,7 +210,11 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        if [ "$dataset_name" == "CheXpert" ]; then
+            python chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+        else
+            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
+        fi
 
         cd "$strategy"
         python server.py --fold "$fold" &
@@ -253,19 +241,5 @@ for scaling in $(seq 1 8); do
         sleep 2
 
     done
-
-    # K-Fold evaluation, if k_folds > 1
-    if [ "$k_folds" -gt 1 ]; then
-
-        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
-        # Averaging the results of all folds
-        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
-        # Plot confidence interval plots
-        # python public/plots_across_folds.py --dataset "$dataset_name"
-    fi
-
-    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
-
-done
 
 

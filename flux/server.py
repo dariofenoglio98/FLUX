@@ -373,7 +373,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # np.save(f'results/client_id_plot.npy', client_id_plot)
 
             # KMeans
-            if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
+            if cfg.CLIENT_CLUSTER_METHOD == 1:
                 range_n_clusters = range(2, cfg.n_clients)
                 # Store inertia (sum of squared distances to centroids) and silhouette scores
                 inertia, silhouette_scores = [], []
@@ -397,7 +397,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
 
             # DBSCAN
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 2:
+            elif cfg.CLIENT_CLUSTER_METHOD == 2:
                 clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr)
                 if min(cluster_labels) < 0: # -1 is for outliers
@@ -407,7 +407,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             # HDBSCAN
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 3:
+            elif cfg.CLIENT_CLUSTER_METHOD == 3:
                 clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 # clustering = HDBSCAN(min_cluster_size=5)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr) # Note negative values are outliers, here I make them positive for visualization
@@ -418,7 +418,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
 
             # DBSCAN_no_outliers
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 4:
+            elif cfg.CLIENT_CLUSTER_METHOD == 4:
                 
                 # Calculate eps
                 nbrs = NearestNeighbors(n_neighbors=2).fit(client_descr)
@@ -426,7 +426,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 sorted_distances = np.sort(distances[:, 1])
                 kneedle = KneeLocator(range(len(sorted_distances)), sorted_distances, curve='convex', direction='increasing')
                 # print(f"kneedle.elbow: {sorted_distances[kneedle.elbow]}")
-                eps = sorted_distances[kneedle.elbow] * cfg.eps_scaling  
+                eps = sorted_distances[kneedle.elbow] * cfg.eps_scaling 
+                if cfg.dataset_name == 'CheXpert':
+                    eps = 1.0 
 
                 # Use this final eps for DBSCAN
                 clustering = DBSCAN(eps=eps, min_samples=2)
@@ -454,7 +456,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
 
             # DBSCAN_no_outliers
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
+            elif cfg.CLIENT_CLUSTER_METHOD == 5:
                 # known prior number of clusters
                 n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
                 self.real_n_clusters = n_clusters
@@ -684,7 +686,7 @@ def main() -> None:
     in_channels = utils.get_in_channels()
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-    descriptors_scaler = client_descr_scaling(scaling_method=cfg.cfl_oneshot_CLIENT_SCALING_METHOD,
+    descriptors_scaler = client_descr_scaling(scaling_method=cfg.CLIENT_SCALING_METHOD,
                                               scaler=MinMaxScaler(),
                                               )
     
@@ -757,14 +759,23 @@ def main() -> None:
     losses, accuracies = [], []
     losses_known, accuracies_known = [], []
     for client_id in range(cfg.n_clients):
-        test_x, test_y = [], []
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}.npy', allow_pickle=True).item()
-            test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
+            cur_data['test_features'] = torch.tensor(cur_data['test_features'], dtype=torch.float32)
+            cur_data['test_labels'] = torch.tensor(cur_data['test_labels'], dtype=torch.int64)
+            if not cfg.dataset_name == "CheXpert":
+                test_x = cur_data['test_features'] if in_channels == 3 else cur_data['test_features'].unsqueeze(1)
+            else:
+                test_x = cur_data['test_features']
             test_y = cur_data['test_labels']
         else:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}_round_-1.npy', allow_pickle=True).item()
-            test_x = cur_data['features'] if in_channels == 3 else cur_data['features'].unsqueeze(1)
+            cur_data['features'] = torch.tensor(cur_data['features'], dtype=torch.float32)
+            cur_data['labels'] = torch.tensor(cur_data['labels'], dtype=torch.int64)
+            if not cfg.dataset_name == "CheXpert":
+                test_x = cur_data['features'] if in_channels == 3 else cur_data['features'].unsqueeze(1)
+            else:
+                test_x = cur_data['features']
             test_y = cur_data['labels']
         
         # Create test dataset and loader

@@ -3,7 +3,7 @@ k_folds = 3 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'flux' # ['flux', 'fedavg', 'fedprox', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
-n_clients = 4
+n_clients = 10
 n_samples_clients = -1 # if -1, use all samples
 
 # differential privacy on the descriptors
@@ -11,9 +11,9 @@ differential_privacy_descriptors = False
 epsilon = 0.1
 # sensitivity = 1.0 # automatically calculated
 
-# Strategy cfl_oneshot
-cfl_oneshot_CLIENT_SCALING_METHOD = 1 # ['Ours', 'weighted', 'none']
-cfl_oneshot_CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers', 'Kmeans_with_prior']
+# Strategy FLUX
+CLIENT_SCALING_METHOD = 1 # ['Ours', 'weighted', 'none']
+CLIENT_CLUSTER_METHOD = 4 # ['Kmeans', 'DBSCAN', 'HDBSCAN', 'DBSCAN_no_outliers', 'Kmeans_with_prior']
 extended_descriptors = True #mean and std 
 weighted_metric_descriptors = False
 selected_descriptors = "Px_label_long" # Options: "Px", "Py", "Pxy", "Px_cond", "Pxy_cond", "Px_label_long", "Px_label_short" for training time
@@ -26,7 +26,7 @@ th_round = 0.06 # derivative threshold on accuracy trend for starting clustering
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST", "CheXpert"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
@@ -49,7 +49,8 @@ n_classes_dict = {
     "CIFAR10": 10,
     "CIFAR100": 100,
     "MNIST": 10,
-    "FMNIST": 10
+    "FMNIST": 10,
+    "CheXpert": 14,
 }
 n_classes = n_classes_dict[dataset_name]
 
@@ -57,18 +58,21 @@ input_size_dict = {
     "CIFAR10": (32, 32),
     "CIFAR100": (32, 32),
     "MNIST": (28, 28),
-    "FMNIST": (28, 28)
+    "FMNIST": (28, 28),
+    "CheXpert": (64, 64),
 }
 input_size = input_size_dict[dataset_name]
 
-acceptable_accuracy = {
+acceptable_accuracy = { #not used
     "CIFAR10": 0.5,
     "CIFAR100": 0.1,
     "MNIST": 0.8,
-    "FMNIST": 0.8
+    "FMNIST": 0.8,
+    "CheXpert": 0.7,
 }
 th_accuracy = acceptable_accuracy[dataset_name]
 training_drifting = False if drifting_type in ['static', 'trND_teDR'] else True # to be identified
+training_drifting = True if dataset_name == "CheXpert" else training_drifting
 default_path = f"{random_seed}/{model_name}/{dataset_name}/{drifting_type}"
 
 # FL settings - Communications
