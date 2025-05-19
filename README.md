@@ -2,9 +2,9 @@
 
 FLUX is a novel, efficient Clustered Federated Learning (CFL) framework designed to tackle the four most common types of distribution shifts encountered in real-world federated learning scenarios:
 
-- Feature distribution shifts \((P(X))\)
-- Label distribution shifts \((P(Y))\)
-- Conditional concept shifts \((P(Y|X)\) and \(P(X|Y))\)
+- Feature distribution shifts \(P(X)\)
+- Label distribution shifts \(P(Y)\)
+- Conditional concept shifts \(P(Y|X)\) and \(P(X|Y)\)
 
 By leveraging compact, privacy-preserving client-side descriptors and an adaptive, density-based clustering algorithm, FLUX automatically discovers client clusters without any prior knowledge of the number of distributions, and supports test-time adaptation for truly unseen and unlabeled clients. FLUX maintains computational and communication costs on par with FedAvg while delivering significant accuracy gains across benchmarks.
 
@@ -49,9 +49,17 @@ Once configured, launch experiments with:
 ```bash
 bash run.sh
 ```
-Results—including metrics, training history, visualisations, and model checkpoints—are saved under the `strategy/results`, `strategy/history`, `strategy/images`, and `strategy/checkpoints` directories, respectively.
+Results—including metrics, training history, visualizations, and model checkpoints—are saved under the `strategy/results`, `strategy/history`, `strategy/images`, and `strategy/checkpoints` directories, respectively.
 
 ## License
 This project is licensed under the MIT License – see the LICENSE.md file for details.
 
 ## Citation
+If you use FLUX in your research, please cite our NeurIPS 2025 paper:
+```
+@inproceedings{anonymous2025flux,
+  title        = {{FLUX}: {Efficient Descriptor-Driven Clustered Federated Learning under Arbitrary Distribution Shifts}},
+  author       = {Anonymous Authors},
+  year         = {2025}
+}
+```
