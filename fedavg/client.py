@@ -2,7 +2,7 @@
 This code creates a Flower client that can be used to train a model locally and share the updated 
 model with the server. When it is started, it connects to the Flower server and waits for instructions.
 If the server sends a model, the client trains the model locally and sends back the updated model.
-If abilitated, at the end of the training the client evaluates the last model, and plots the 
+If enabled, at the end of the training the client evaluates the last model, and plots the 
 metrics during the training.
 
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.

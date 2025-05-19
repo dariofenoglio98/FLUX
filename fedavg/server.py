@@ -1,9 +1,13 @@
 """
-CFL implementation of fedavg, server side.
+This code implements the FLUX, when it starts, the server waits for the clients to connect. When the established number 
+of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
+model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
+with FedAvg. The aggregated model is then sent to the clients for the next round of training. The server saves the model 
+and metrics after each round.
 
-Code to be used locally, but it can be used in a distributed environment by changing the server_address.
+This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
-run the appopriate client code (client.py).
+run the appropriate client code (client.py).
 """
 
 from typing import List, Tuple, Union, Optional, Dict

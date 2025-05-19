@@ -1,18 +1,15 @@
 """
-This code implements the FedAvg, when it starts, the server waits for the clients to connect. When the established number 
-of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
-model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
-with FedAvg. The aggregated model is then sent to the clients for the next round of training. The server saves the model 
-and metrics after each round.
+This code implements the server-side of FLUX. Like traditional FedAvg when it starts, the server waits for the clients 
+to connect. When the established number of clients is reached, the learning process starts. The server sends the model 
+to the clients, and the clients train the model locally. After training, the clients send the updated model back to the
+server. When the optimal round is reached, the server starts clustering the clients based on their data descriptors, 
+grouping them by similarity. Each client then receives only the assigned cluster model. The aggregation proceeds within
+the clusters. If the server is set to evaluate the model, it will do so after each round. The server also saves the 
+model and metrics after each round.
 
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
-run the appopriate client code (client.py).
-
-METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
-current global model is utilized to extract client descriptors and perform the one-shot clustering. After the clustering,
-each client receives only the assigned cluster model, which its local model will be aggregated with other client models
-in the same clusters. The training continues until the end. 
+run the appropriate client code (client.py).
 """
 
 # Libraries
@@ -62,10 +59,6 @@ from flwr.common import (
 )
 
 MAX_LATENT_SPACE = 2
-
-# TODO DARIO
-# WHAT IF: we introduced latent space descriptors per class, i.e., selecting only one class, calculating the mean latent
-# space on it, reducing dim, and then same for others. Creating something like [metrics, latent_class1, latent_class2..]
 
 class client_descr_scaling:
     def __init__(self, 

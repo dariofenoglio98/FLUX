@@ -1,9 +1,9 @@
 """
-CFL implementation of fedprox, server side.
+FedProx server code.
 
 Code to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
-run the appopriate client code (client.py).
+run the appropriate client code (client.py).
 """
 
 from typing import List, Tuple, Union, Optional, Dict
