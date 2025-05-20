@@ -1,3 +1,27 @@
+"""
+This script prepares federated training and testing datasets for clients using a subset of the CheXpert dataset.
+To simulate non-IID and drifting settings, it supports 2, 4, or 8 cluster configurations based on combinations 
+of image view (Frontal/Lateral), age, and gender.
+
+Main Features:
+- Loads and preprocesses CheXpert images and labels (resized to 64×64).
+- Splits the dataset into training/testing chunks per client with configurable distribution scaling.
+- Saves metadata including cluster configurations, client distributions, and drift logs.
+
+Arguments:
+- --fold: Cross-validation fold index.
+- --scaling: Distribution scaling level (1 → 2 clusters, 2 → 4 clusters, 3 → 8 clusters).
+- --epoch_num: Number of data changes (epochs) per client (default=1).
+- --n_clients: Number of federated clients.
+
+Outputs:
+- Training/testing `.npy` files for each client and round in `./data/cur_datasets/`.
+- Logs: `drifting_log.npy`, `client_distribution.npy`, `n_clusters.npy`
+
+NOTE: The script assumes the CheXpert dataset is already downloaded and available in the specified path.
+      It can be downloaded by uncommenting the `kagglehub` download line (lines 69-71)
+"""
+
 TRAIN_SIZE = 100000
 TEST_SIZE = 20000
 PER_ROUND_TRAIN_SIZE = 150

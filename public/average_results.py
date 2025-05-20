@@ -1,3 +1,19 @@
+"""
+This script loads test metrics from multiple cross-validation folds (saved as `.npy` files),
+computes the per-client and global mean and standard deviation for each metric,
+and saves the aggregated results as an Excel file.
+
+Arguments:
+- --scaling: Integer identifier for scaling configuration.
+- --non_iid_type: Type of data heterogeneity (e.g., label shift, feature shift).
+
+Input:
+- test_metrics_fold_{i}.npy for i in range(cfg.k_folds)
+
+Output:
+- mean_std_test_metrics_{non_iid_type}_{scaling}_eps{epsilon}.xlsx
+"""
+
 import numpy as np
 import os
 import pandas as pd

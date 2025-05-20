@@ -1,3 +1,9 @@
+"""
+This script reads per-round accuracy data across multiple cross-validation folds and plots:
+1. The mean accuracy with 95% confidence intervals.
+2. The mean derivative of accuracy (change per round) with corresponding confidence intervals.
+"""
+
 # read data json
 import json
 import numpy as np 

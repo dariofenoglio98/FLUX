@@ -1,10 +1,14 @@
 """
-LeNet-5 (around 60k parameters)
-ResNet-9 (around 6M parameters)
+This module defines lightweight and mid-sized convolutional models (LeNet-5 and ResNet-9), along with
+utility functions to train and evaluate them within the ANDA benchmark framework.
 
-Check gpu function
-Training functions to test the models
-
+Key Components:
+- `LeNet5` (~60K parameters): classical CNN for low-resolution input (e.g., MNIST, FMNIST).
+- `ResNet9` (~6M parameters): residual CNN with skip connections for deeper representation.
+- `simple_train` and `fedprox_train`: training routines for standard SGD and FedProx-style objectives.
+- `simple_test`: standard test loop supporting both multi-class and multi-label classification.
+- `ModelEvaluator`: descriptor extractor and model evaluation with per-class metrics, and optional differentially private summaries.
+- `add_dp_noise`: utility to apply Laplace noise for DP guarantees.
 """
 
 VERBOSE = True

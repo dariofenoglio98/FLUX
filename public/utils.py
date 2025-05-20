@@ -1,3 +1,14 @@
+"""
+This module provides utility functions for:
+- Device selection and reproducibility (seed setup, GPU/MPS fallback)
+- Directory setup for saving results, histories, and images
+- Federated training metric visualization (loss/accuracy per client and server)
+- Clustering and centroid computation (KMeans, DBSCAN, HDBSCAN, etc.)
+- Plotting cluster visualizations, elbow curves, and silhouette scores
+- Determining the input channels from the dataset
+- Saving and annotating key evaluation metrics over training rounds
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns

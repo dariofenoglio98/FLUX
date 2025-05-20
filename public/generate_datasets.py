@@ -1,4 +1,22 @@
-# ANDA interface
+"""
+This script interfaces with the ANDA benchmark to generate client-specific datasets for federated learning experiments,
+simulating various non-IID conditions.
+
+Main Features:
+- Static distributions: label skew, feature skew, conditional skew, and combinations with strict or unbalanced variants.
+- Supports scaling options to increase heterogeneity via rotation, color shift, or class constraints.
+- Automatically saves datasets in `./data/cur_datasets/` with appropriate filenames and logs.
+
+Arguments:
+- --fold: Cross-validation fold index to control random seed.
+- --scaling: Controls the severity of non-IID (e.g., number of rotations or label mix level).
+- --non_iid_type: Specifies the distribution type (e.g., `label_skew_strict`, `feature_condition_skew`).
+
+Outputs:
+- `.npy` files for each client (and round if drifting).
+- `n_clusters.npy`: number of distinct data clusters used.
+- `drifting_log.npy`: mapping of rounds to clients when drifting is enabled.
+"""
 
 import config as cfg
 
