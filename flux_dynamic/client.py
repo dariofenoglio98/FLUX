@@ -64,6 +64,8 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             load_index = max([index for index in self.drifting_log if index <= cur_round], default=0)
             cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}_round_{load_index}.npy', allow_pickle=True).item()
+            if self.client_id == 1:
+                print(f"\033[94mClient {self.client_id} - Loading data from round {load_index}\033[0m")
         
         cur_features = torch.tensor(cur_data['train_features'], dtype=torch.float32) if not cfg.training_drifting else torch.tensor(cur_data['features'], dtype=torch.float32)
         cur_labels = torch.tensor(cur_data['train_labels'], dtype=torch.int64) if not cfg.training_drifting else torch.tensor(cur_data['labels'], dtype=torch.int64)
@@ -114,7 +116,7 @@ class FlowerClient(fl.client.NumPyClient):
                                                         client_id=self.client_id, max_latent_space=config["max_latent_space"])
             self.old_descriptors = copy.deepcopy(descriptors)
             
-        if cur_round == 10:
+        if cur_round == cfg.drifting_round:
             if self.client_id == 1:
                 print(f"\033[94mDrift detected! Round {cur_round} - Extracting new descriptors \033[0m")
             
@@ -144,7 +146,7 @@ class FlowerClient(fl.client.NumPyClient):
         cur_round = config["current_round"]
         cur_val_loader = self.load_current_data(cur_round, train=False)
         
-        # if cur_round == 10:
+        # if cur_round == cfg.drifting_round:
         #     # print few model parameters
         #     print(f"Eval: Client {self.client_id} - Model parameters: {list(self.model.state_dict().values())[0][0][0][:1]}")
 

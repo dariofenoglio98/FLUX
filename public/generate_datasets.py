@@ -32,7 +32,7 @@ from ANDA import anda
 # Get arguments
 parser = argparse.ArgumentParser(description='Generate datasets for ANDA')
 parser.add_argument('--fold', type=int, default=0, help='Fold number of the cross-validation')
-parser.add_argument('--scaling', type=int, default=0, help='Data scaler')
+parser.add_argument('--scaling', type=int, default=1, help='Data scaler')
 parser.add_argument('--non_iid_type', type=str, default=cfg.drifting_type, help='Drifting type')
 args = parser.parse_args()
 
@@ -154,18 +154,96 @@ if cfg.drifting_type == 'static':
     )
     
 elif cfg.drifting_type in ['trND_teDR','trDA_teDR','trDA_teND','trDR_teDR','trDR_teND']:
+    epoch_num = 2
+    data_scaling = max(1.0, epoch_num*cfg.n_clients/30)
+
+    current_args = {
+        'DA_dataset_scaling': data_scaling,
+        'DA_epoch_locker_num': epoch_num,
+        'DA_random_locker': False,
+        'DA_max_dist': 100,
+        'DA_continual_divergence': False
+    }
+
+    if args.non_iid_type == 'feature_skew_strict':
+        if args.scaling == 1:
+            current_args['rotation_bank'] = 4
+            current_args['color_bank'] = 1
+
+        elif args.scaling == 2:
+            current_args['rotation_bank'] = 2
+            current_args['color_bank'] = 3
+        
+        elif args.scaling == 3:
+            current_args['rotation_bank'] = 4
+            current_args['color_bank'] = 3
+        else:
+            raise ValueError("Scaling factor not found! Please check the ANDA page for more details.")
+
+    elif args.non_iid_type == 'label_skew_strict':
+        if args.scaling == 1:
+            current_args['py_bank'] = 4
+            current_args['classes_per_set'] = 2
+        elif args.scaling == 2:
+            current_args['py_bank'] = 6
+            current_args['classes_per_set'] = 2
+        elif args.scaling == 3:
+            current_args['py_bank'] = 8
+            current_args['classes_per_set'] = 2
+        else:
+            raise ValueError("Scaling factor not found! Please check the ANDA page for more details.")
+
+    elif args.non_iid_type == 'label_condition_skew':
+        if args.scaling == 1:
+            current_args['mixing_num'] = 3
+        elif args.scaling == 2:
+            current_args['mixing_num'] = 4
+        elif args.scaling == 3:
+            current_args['mixing_num'] = 5
+        else:
+            raise ValueError("Scaling factor not found! Please check the ANDA page for more details.")
+
+    elif args.non_iid_type == 'feature_condition_skew':
+        current_args['rotation_bank'] = 4
+        current_args['color_bank'] = 3
+        if args.scaling == 1:
+            current_args['pyx_pattern_bank_num'] = 4
+            current_args['targeted_class_number'] = 8
+        elif args.scaling == 2:
+            current_args['pyx_pattern_bank_num'] = 6
+            current_args['targeted_class_number'] = 8
+        elif args.scaling == 3:
+            current_args['pyx_pattern_bank_num'] = 8
+            current_args['targeted_class_number'] = 8
+        else:
+            raise ValueError("Scaling factor not found! Please check the ANDA page for more details.")
+        
+    else:
+        raise ValueError("Non-IID type not found! Please check the ANDA page for more details.")
+        
+    if args.non_iid_type == 'feature_skew_strict':
+        non_iid_type = 'Px'
+    elif args.non_iid_type == 'label_skew_strict':
+        non_iid_type = 'Py'
+    elif args.non_iid_type == 'label_condition_skew':
+        non_iid_type = 'Py_x'
+    elif args.non_iid_type == 'feature_condition_skew':
+        non_iid_type = 'Px_y'
+    else:   
+        raise ValueError("Non-IID type not found! Please check the ANDA page for more details.")
     # dynamic mode using same fn
     anda_dataset = anda.load_split_datasets_dynamic(
         dataset_name = cfg.dataset_name,
         client_number = cfg.n_clients,
-        non_iid_type = args.non_iid_type,
+        non_iid_type = non_iid_type,
         drfting_type = cfg.drifting_type,
         verbose = cfg.verbose,
         count_labels=cfg.count_labels,
         plot_clients=cfg.plot_clients,
         random_seed = cfg.random_seed + args.fold,
-        **cfg.args
+        **current_args
     )
+    
 else:
     raise ValueError("Drifting type not found! Please check the ANDA page for more details.")
 
@@ -184,9 +262,11 @@ if not cfg.training_drifting:
 # complex format as training drifting
 else:
     drifting_log = {}
+    cluster_log = {}
     for dataset in anda_dataset:
         client_number = dataset['client_number']
         cur_drifting_round = int(cfg.n_rounds * dataset['epoch_locker_indicator']) if dataset['epoch_locker_indicator'] != -1 else -1
+        cur_drifting_round = cfg.drifting_round if cur_drifting_round != 0 and cur_drifting_round != -1 else cur_drifting_round
 
         # save data file      
         filename = f'./data/cur_datasets/client_{client_number}_round_{cur_drifting_round}.npy'
@@ -198,10 +278,19 @@ else:
             drifting_log[client_number] = []
         drifting_log[client_number].append(cur_drifting_round)
 
+        # recording optimal cluster
+        if client_number not in cluster_log:
+            cluster_log[client_number] = []
+        cluster_log[client_number].append(dataset['cluster'])
+
     # print(", ".join(f"{key}: {value}" for key, value in drifting_log.items()))
 
     # save log file
     np.save(f'./data/cur_datasets/drifting_log.npy', drifting_log)
+    # save cluster log
+    np.save(f'./data/cur_datasets/cluster_log.npy', cluster_log)
+    print(f"\033[91mCluster log: {cluster_log}\033[0m")
+
 
 print("Datasets saved successfully!")
 

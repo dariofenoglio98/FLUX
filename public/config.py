@@ -2,7 +2,7 @@
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
 strategy = 'flux_dynamic' # ['flux', 'flux_dynamic', 'fedavg', 'fedprox', 'optimal_FL']
 random_seed = 42
-gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
+gpu = 3 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
 n_samples_clients = -1 # if -1, use all samples
 
@@ -27,7 +27,8 @@ fedprox_proximal_mu = 0.1
 
 # Dataset settings
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST", "CheXpert"]
-drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
+drifting_type = 'trDR_teND' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
+drifting_round = 8
 non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True

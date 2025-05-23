@@ -31,6 +31,8 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 from kneed import KneeLocator # type: ignore
+from collections import Counter
+
 
 import sys
 import os
@@ -210,6 +212,79 @@ def match_centroids_to_previous(current_centroids: dict, prev_centroids: dict) -
         closest_label = min(distances, key=distances.get)
         mapping[c_label] = closest_label
     return mapping
+
+def best_cluster_for_client(
+    client_id: int,
+    cluster_log: Dict[int, List[int]],
+    cluster_label_inference: Dict[int, int],
+    *,
+    test_round_index: int = -1,          # by default: last element → test-time
+    last_training_index: int = -2        # by default: penultimate element → last train round
+) -> Optional[int]:
+    """
+    Return the cluster-label (i.e. the model) that best fits `client_id` at test time.
+
+    Logic
+    -----
+    1. Look up the **test-time distribution** of `client_id`.
+    2. Find every other client whose **last-training-round** distribution equals that same value.
+    3. For those clients, tally the cluster labels you actually used during training
+       (`cluster_label_inference[other_client]`).
+    4. Return the most common label.  In case of a tie, return the smaller label.
+
+    Parameters
+    ----------
+    client_id : int
+        The client for which we want the best-fitting model.
+    cluster_log : dict[int, list[int]]
+        Key: client id.  Value: list of theoretical distributions per round
+        (e.g. [dist_round0, dist_round1, dist_test]).
+    cluster_label_inference : dict[int, int]
+        Key: client id.  Value: cluster label assigned by your training pipeline.
+    test_round_index : int, default -1
+        Which element in the list is the test-time distribution.
+    last_training_index : int, default -2
+        Which element in the list is the final training-round distribution.
+
+    Returns
+    -------
+    int | None
+        The selected cluster label, or `None` if the algorithm cannot find a match
+        (e.g. the distribution was never seen during training).
+    """
+
+    if client_id not in cluster_log:
+        raise KeyError(f"Client {client_id} not present in cluster_log")
+
+    history = cluster_log[client_id]
+    try:
+        test_distribution = history[test_round_index]
+    except IndexError:
+        raise ValueError(
+            f"Client {client_id} does not have a test-time entry "
+            f"at index {test_round_index}"
+        )
+
+    # 1. find peers with same distribution in the last training round
+    peers = [
+        cid
+        for cid, rounds in cluster_log.items()
+        if len(rounds) > abs(last_training_index)
+        and rounds[last_training_index] == test_distribution
+        and cid in cluster_label_inference        # must have a label
+    ]
+
+    if not peers:
+        # Never saw this distribution during training
+        return None
+
+    # 2. majority vote over the labels
+    counts = Counter(cluster_label_inference[cid] for cid in peers)
+    max_votes = max(counts.values())
+    # all labels with the highest vote count
+    winners = [label for label, n in counts.items() if n == max_votes]
+    # deterministic tie-break: choose the smallest label
+    return min(winners)
 
 
 
@@ -465,7 +540,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Output the final eps, the number of clusters, and the new labels
                 print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
                 print(f"Cluster labels after reassigning noise points: {cluster_labels}")
-                self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                # self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
 
                 self.centroid_dict = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type) # A dictionary containing the cluster label as the key and the centroid as the value.
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
@@ -506,7 +581,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         ################################################################################
         # Second clustering after drift being detected
         ################################################################################ 
-        if server_round == 10:
+        if server_round == cfg.drifting_round:
 
             print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
 
@@ -603,7 +678,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Output the final eps, the number of clusters, and the new labels
                 print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
                 print(f"Cluster labels after reassigning noise points: {cluster_labels}")
-                self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                # self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
 
                 self.centroid_dict2 = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type) # A dictionary containing the cluster label as the key and the centroid as the value.
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN2")
@@ -664,7 +739,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Clustered, update to cluster models
         if self.cluster_status == 2:
-            if server_round == 10:
+            if server_round == cfg.drifting_round:
                 # Do not perform aggregation (no training) but update cluster models with the closest one
                 new_agg_cluster_parameters = {}
                 for cc in range(self.n_clusters):
@@ -930,6 +1005,7 @@ def main() -> None:
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
     losses_known, accuracies_known = [], []
+    cluster_log = np.load(f'../data/cur_datasets/cluster_log.npy', allow_pickle=True).item()
     for client_id in range(cfg.n_clients):
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}.npy', allow_pickle=True).item()
@@ -987,8 +1063,9 @@ def main() -> None:
         
         
         # --- Participating clients: assign known cluster ---
-        client_cluster = cluster_labels_inference[client_id]
-
+        client_cluster = best_cluster_for_client(client_id, cluster_log, cluster_labels_inference)
+        # client_cluster = cluster_labels_inference[client_id]
+        
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                         input_size=cfg.input_size).to(device)
