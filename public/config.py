@@ -1,6 +1,6 @@
 # Overall settings
 k_folds = 5 # number of folds for cross-validation, if 1, no cross-validation
-strategy = 'flux' # ['flux', 'fedavg', 'fedprox', 'optimal_FL']
+strategy = 'flux_dynamic' # ['flux', 'flux_dynamic', 'fedavg', 'fedprox', 'optimal_FL']
 random_seed = 42
 gpu = -2 # set the GPU to use, if -1 use CPU, -2 for multigpus
 n_clients = 10
@@ -38,7 +38,7 @@ model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 10
+n_rounds = 12
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
