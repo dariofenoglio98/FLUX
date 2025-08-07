@@ -26,7 +26,7 @@ th_round = 0.06 # derivative threshold on accuracy trend for starting clustering
 fedprox_proximal_mu = 0.1
 
 # Dataset settings
-dataset_name = "CIFAR100" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
+dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 non_iid_type = 'feature_skew_strict' # ['feature_skew_strict', 'label_skew_strict', 'feature_condition_skew', 'label_condition_skew'] refer to ANDA page for more details
 verbose = True
@@ -68,14 +68,16 @@ args = {
 # }
 
 # Training model settings
-model_name = "ResNet9"   # ["LeNet5", "ResNet9"]
+model_name = "LeNet5"   # ["LeNet5", "ResNet9"]
 batch_size = 64
 test_batch_size = 64
 client_eval_ratio = 0.2
-n_rounds = 20
+n_rounds = 10
 local_epochs = 2
 lr = 0.005
 momentum = 0.9
+partial_aggregation_ratio = 0.8 # [0.2, 0.4, 0.6, 0.8, 1] # only for simulated fl 
+
 
 # self-defined settings
 n_classes_dict = {
