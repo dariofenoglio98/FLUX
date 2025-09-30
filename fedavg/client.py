@@ -1,4 +1,7 @@
 """
+FedAvg Client Implementation.
+Each client trains a model locally, evaluates the global model and shares the updated model with the server.
+
 This code creates a Flower client that can be used to train a model locally and share the updated 
 model with the server. When it is started, it connects to the Flower server and waits for instructions.
 If the server sends a model, the client trains the model locally and sends back the updated model.

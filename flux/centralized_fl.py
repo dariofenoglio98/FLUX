@@ -332,7 +332,7 @@ def main() -> None:
     ).to(device)
     
     # descriptor scaler
-    descriptors_scaler = client_descr_scaling(scaling_method=cfg.cfl_oneshot_CLIENT_SCALING_METHOD,
+    descriptors_scaler = client_descr_scaling(scaling_method=cfg.flux_CLIENT_SCALING_METHOD,
                                               scaler=MinMaxScaler(),
                                               )
 

@@ -185,12 +185,12 @@ def calculate_centroids(data: np.ndarray,
     """
     
     # Kmeans
-    if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1 or cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
+    if cfg.flux_CLIENT_CLUSTER_METHOD == 1 or cfg.flux_CLIENT_CLUSTER_METHOD == 5:
         centroids = clustering_method.cluster_centers_
         centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
     
     # DBSCAN and HDBSCAN, DBSCAN_no_outliers
-    elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD in [2, 3, 4]:
+    elif cfg.flux_CLIENT_CLUSTER_METHOD in [2, 3, 4]:
         centroids_dict = {}
         for label in np.unique(cluster_labels):
             cluster_points = data[cluster_labels == label]

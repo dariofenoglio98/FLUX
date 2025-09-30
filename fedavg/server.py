@@ -1,5 +1,5 @@
 """
-CFL implementation of fedavg, server side.
+Implementation of FedAvg, server side.
 
 Code to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 

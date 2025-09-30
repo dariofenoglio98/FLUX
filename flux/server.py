@@ -1,4 +1,10 @@
 """
+Server side implementation of FLUX.
+METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
+current global model is utilized to extract client descriptors and perform the unsupervised clustering. After the clustering,
+each client receives only the assigned cluster model, which its local model will be aggregated with other client models
+in the same clusters. The training continues until the end. 
+
 This code implements the FedAvg, when it starts, the server waits for the clients to connect. When the established number 
 of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
 model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
@@ -8,11 +14,6 @@ and metrics after each round.
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
 run the appopriate client code (client.py).
-
-METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
-current global model is utilized to extract client descriptors and perform the one-shot clustering. After the clustering,
-each client receives only the assigned cluster model, which its local model will be aggregated with other client models
-in the same clusters. The training continues until the end. 
 """
 
 # Libraries
@@ -267,6 +268,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
             self.cluster_status = 2
 
+            #############################################################################
+            # Prepare client descriptors
+            #############################################################################
             # Extract & scale client descriptors and self-assigned client ids, FLWR cids
             client_descr, client_id_plot, client_cid_list  = [], [], []
             for proxy, res in results:
@@ -366,13 +370,11 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
 
-            # temp save
-            # save descriptors and cid list
-            # np.save(f'results/client_descr.npy', client_descr)
-            # np.save(f'results/client_id_plot.npy', client_id_plot)
-
+            #############################################################################
+            # Clustering methods
+            #############################################################################
             # KMeans
-            if cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 1:
+            if cfg.flux_CLIENT_CLUSTER_METHOD == 1:
                 range_n_clusters = range(2, cfg.n_clients)
                 # Store inertia (sum of squared distances to centroids) and silhouette scores
                 inertia, silhouette_scores = [], []
@@ -396,7 +398,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
 
             # DBSCAN
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 2:
+            elif cfg.flux_CLIENT_CLUSTER_METHOD == 2:
                 clustering = DBSCAN(eps=0.5, min_samples=2)  # You can tune the parameters `eps` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr)
                 if min(cluster_labels) < 0: # -1 is for outliers
@@ -406,7 +408,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
             
             # HDBSCAN
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 3:
+            elif cfg.flux_CLIENT_CLUSTER_METHOD == 3:
                 clustering = HDBSCAN(min_cluster_size=2)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 # clustering = HDBSCAN(min_cluster_size=5)  # You can tune the parameters `min_cluster_size` and `min_samples`
                 cluster_labels = clustering.fit_predict(client_descr) # Note negative values are outliers, here I make them positive for visualization
@@ -417,7 +419,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
 
             # DBSCAN_no_outliers
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 4:
+            elif cfg.flux_CLIENT_CLUSTER_METHOD == 4:
                 
                 # Calculate eps
                 nbrs = NearestNeighbors(n_neighbors=2).fit(client_descr)
@@ -453,7 +455,7 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
 
             # DBSCAN_no_outliers
-            elif cfg.cfl_oneshot_CLIENT_CLUSTER_METHOD == 5:
+            elif cfg.flux_CLIENT_CLUSTER_METHOD == 5:
                 # known prior number of clusters
                 n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
                 self.real_n_clusters = n_clusters
@@ -475,13 +477,12 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
             np.save(f'results/{self.path}/cluster_labels_inference_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
-            # print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
-
             # Assuming cluster_labels is a dictionary where keys are client IDs and values are cluster labels
             cluster_labels_list = list(self.cluster_labels.values())
             client_id_plot_sorted, cluster_labels_sorted = zip(*sorted(zip(client_id_plot, cluster_labels_list)))
 
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters (Cluster labels: {cluster_labels_sorted} - Client IDs: {client_id_plot_sorted})\033[0m")
+
 
         ################################################################################
         # Federated averaging aggregation
@@ -682,7 +683,7 @@ def main() -> None:
     in_channels = utils.get_in_channels()
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-    descriptors_scaler = client_descr_scaling(scaling_method=cfg.cfl_oneshot_CLIENT_SCALING_METHOD,
+    descriptors_scaler = client_descr_scaling(scaling_method=cfg.flux_CLIENT_SCALING_METHOD,
                                               scaler=MinMaxScaler(),
                                               )
     

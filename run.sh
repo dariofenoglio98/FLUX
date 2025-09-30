@@ -32,10 +32,10 @@ for fold in $(seq 0 $(($k_folds - 1))); do
 
     cd "$strategy"
 
-    # simulated FL
+    # simulated FL (without Flower Library)
     # python centralized_fl.py --fold "$fold"
 
-    # real FL
+    # FL with Flower Library
     python server.py --fold "$fold" &
     # python dynamic_cluster_global_server.py &
     sleep 2  # Sleep for 2s to give the server enough time to start
@@ -54,18 +54,10 @@ for fold in $(seq 0 $(($k_folds - 1))); do
     # Clean up
     echo "Fold completed correctly"
     trap - SIGTERM 
-    # pkill -u dario -f client.py
-    pkill -u dariofenoglio -f client.py
-    # pkill -u mohan -f client.py
-    # pkill -u mohanli -f client.py
-    # pkill -u dario -f server.py
-    pkill -u dariofenoglio -f sever.py
-    # pkill -u mohan -f server.py
-    # pkill -u mohanli -f server.py
 
     # Change back to the root directory
     cd ..
-    sleep 3
+    sleep 2
 
 done
 

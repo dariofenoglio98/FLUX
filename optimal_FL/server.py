@@ -1,4 +1,12 @@
 """
+CFL with known cluster assignement for each client, server side implementation (not used for experiments).
+
+METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
+current global model is utilized to extract client descriptors and perform the one-shot clustering. After the clustering,
+each client receives only the assigned cluster model, which its local model will be aggregated with other client models
+in the same clusters. The training continues until the end. 
+
+
 This code implements the FedAvg, when it starts, the server waits for the clients to connect. When the established number 
 of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
 model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
@@ -8,11 +16,6 @@ and metrics after each round.
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
 run the appopriate client code (client.py).
-
-METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
-current global model is utilized to extract client descriptors and perform the one-shot clustering. After the clustering,
-each client receives only the assigned cluster model, which its local model will be aggregated with other client models
-in the same clusters. The training continues until the end. 
 """
 
 # Libraries

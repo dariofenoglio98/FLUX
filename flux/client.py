@@ -1,4 +1,8 @@
 """
+FLUX Client Implementation.
+Each client trains a model locally, extracts descriptors when needed, evaluates the global model and shares
+the updated model with the server.
+
 This code creates a Flower client that can be used to train a model locally and share the updated 
 model with the server. When it is started, it connects to the Flower server and waits for instructions.
 If the server sends a model, the client trains the model locally and sends back the updated model.
@@ -33,14 +37,14 @@ import public.models as models
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self,
         model,
-        client_id,
+        client_id, 
         device
         ):
         self.model = model
         self.client_id = client_id
         self.device = device
         self.drifting_log = []
-        
+
         # plot
         self.metrics = {
             "rounds": [],
@@ -72,7 +76,7 @@ class FlowerClient(fl.client.NumPyClient):
             cur_features, cur_labels, test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
         )
         
-        # reduce client data
+        # reduce the number of samples 
         if cfg.n_samples_clients > 0:
             train_features = train_features[:cfg.n_samples_clients]
             train_labels = train_labels[:cfg.n_samples_clients]
@@ -97,29 +101,34 @@ class FlowerClient(fl.client.NumPyClient):
     # override
     def fit(self, parameters, config):
         self.set_parameters(parameters)
+        # print(f"Parameters set for client {self.client_id} - {self.model[0][0]}")
         cur_round = config["current_round"]
         cur_train_loader = self.load_current_data(cur_round, train=True)
+        
+        # Extract descriptors
+        descriptors = {}
+        if config['extract_descriptors']:
+            descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.model, \
+                                                        client_id=self.client_id, max_latent_space=config["max_latent_space"])
 
         # Train the model   
         for epoch in range(config["local_epochs"]):
-            models.fedprox_train(model=self.model,
+            models.simple_train(model=self.model,
                                 device=self.device,
                                 train_loader=cur_train_loader, 
                                 optimizer=torch.optim.SGD(self.model.parameters(), lr=cfg.lr, momentum=cfg.momentum),
-                                proximal_mu=config["proximal_mu"],
                                 epoch=epoch,
                                 client_id=self.client_id)
 
-        return self.get_parameters(config), len(cur_train_loader.dataset), {}
+        return self.get_parameters(config), len(cur_train_loader.dataset), descriptors
     
-    # override
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
         cur_val_loader = self.load_current_data(cur_round, train=False)
 
-        loss_trad, accuracy_trad, f1_score_trad, _ = \
-            models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)
+        loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = \
+            models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)    
 
         # quick check results and save for plot
         print(f"Client {self.client_id} - Round {cur_round} - Loss: {loss_trad:.4f}, Accuracy: {accuracy_trad:.4f}")
@@ -130,25 +139,21 @@ class FlowerClient(fl.client.NumPyClient):
 
         return float(loss_trad), len(cur_val_loader.dataset), {
             "accuracy": float(accuracy_trad),
-            "f1_score": float(f1_score_trad)
+            "f1_score": float(f1_score_trad),
+            "max_latent_space": float(new_max_latent_space),
+            "cid": int(self.client_id),
+            "round": int(cur_round)
         }
+
 
 # main
 def main() -> None:
     # Get client id
     parser = argparse.ArgumentParser(description="Flower")
-    parser.add_argument(
-        "--id",
-        type=int,
-        choices=range(0, cfg.n_clients),
-        required=True,
+    parser.add_argument("--id", type=int, choices=range(0, cfg.n_clients), required=True,
         help="Specifies the artificial data partition",
     )
-    parser.add_argument(
-        "--fold",
-        type=int,
-        required=False,
-        default=0,
+    parser.add_argument("--fold", type=int, required=False, default=0,
         help="Specifies the fold number of the cross-validation",
     )
     args = parser.parse_args()
