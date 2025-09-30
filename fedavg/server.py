@@ -6,8 +6,13 @@ In a distributed environment, the server_address should be the IP address of the
 run the appropriate client code (client.py).
 """
 
-from typing import List, Tuple, Union, Optional, Dict
 import numpy as np
+# NumPy 2.0 removed a few legacy aliases (e.g. np.float_), but downstream dependencies
+# like Flower still rely on them. Restore the expected attributes for compatibility.
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+    
+from typing import List, Tuple, Union, Optional, Dict
 import argparse
 import torch
 from torch.utils.data import DataLoader

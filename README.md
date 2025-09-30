@@ -7,7 +7,7 @@ This is the official implementation of the paper accepted at **NeurIPS 2025**:
 
 ---
 
-## Overview
+## 🌍 Overview
 
 **FLUX** is a clustering-based Federated Learning (FL) framework that leverages compact, privacy-preserving descriptors to dynamically cluster clients and enable robust training under heterogeneous, non-IID data. Unlike previous CFL approaches, FLUX:
 - requires **no prior knowledge** of the number of clusters or distribution types,  
@@ -25,11 +25,8 @@ Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, C
   - Label distribution shifts: \(P(Y)\) varies across clients.  
   - Concept shifts (same features, different labels): \(P(Y|X)\) varies across clients.  
   - Concept shifts (same labels, different features): \(P(X|Y)\) varies across clients.  
-
 - **Unsupervised Clustering:** Adaptive clustering of clients with no need to specify the number of clusters.  
-
 - **Test-Time Adaptation:** Automatic assignment of unseen, unlabeled clients to cluster-specific models.  
-
 - **Scalability & Efficiency:** Lightweight communication and computation overhead, comparable to FedAvg, enabling deployment with large client populations.  
 
 ---
@@ -72,6 +69,10 @@ Once configured, launch experiments with:
 bash run.sh
 ```
 Results—including metrics, training history, visualizations, and model checkpoints—are saved under the `strategy/results`, `strategy/history`, `strategy/images`, and `strategy/checkpoints` directories, respectively.
+
+
+---
+
 
 ## License
 This project is licensed under the MIT License – see the LICENSE.md file for details.

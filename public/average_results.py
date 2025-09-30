@@ -76,7 +76,7 @@ result = calculate_mean_std_metrics(metrics)
 
 # Save the mean metrics to a file
 result_pd = pd.DataFrame(result)
-result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{cfg.args}.xlsx', index=False)
-# result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{cfg.non_iid_type}_{cfg.partial_aggregation_ratio[args.scaling]}.xlsx', index=False)
+# result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{args.non_iid_type}_{cfg.args}.xlsx', index=False)
+result_pd.to_excel(f'{cfg.strategy}/results/{cfg.default_path}/mean_std_test_metrics_{args.non_iid_type}_S{args.scaling}.xlsx', index=False)
 
 

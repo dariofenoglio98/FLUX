@@ -13,8 +13,13 @@ In a distributed environment, the server_address should be the IP address of the
 have this code running.
 """
 
-import argparse
 import numpy as np
+# NumPy 2.0 removed a few legacy aliases (e.g. np.float_), but downstream dependencies
+# like Flower still rely on them. Restore the expected attributes for compatibility.
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+    
+import argparse
 from collections import OrderedDict
 
 import torch

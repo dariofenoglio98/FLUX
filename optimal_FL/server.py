@@ -19,22 +19,21 @@ run the appopriate client code (client.py).
 """
 
 # Libraries
+import numpy as np
+# NumPy 2.0 removed a few legacy aliases (e.g. np.float_), but downstream dependencies
+# like Flower still rely on them. Restore the expected attributes for compatibility.
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+    
 import json
-import copy
 import time
 import torch
 import argparse
-import numpy as np
 from functools import reduce
 from logging import WARNING
 from torch.utils.data import DataLoader
 from collections import OrderedDict
 from typing import List, Tuple, Union, Optional, Dict
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
-from sklearn.metrics import silhouette_score
-from sklearn.decomposition import PCA
 
 import sys
 import os

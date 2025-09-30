@@ -138,6 +138,20 @@ for scaling in $(seq 1 8); do
 
     done
 
+    # K-Fold evaluation, if k_folds > 1
+    if [ "$k_folds" -gt 1 ]; then
+
+        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
+        # Averaging the results of all folds
+        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
+        # Plot confidence interval plots
+        # python public/plots_across_folds.py --dataset "$dataset_name"
+    fi
+
+    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
+
+done
+
 
 
  # P(Y|X)
@@ -193,6 +207,20 @@ for scaling in $(seq 1 8); do
 
     done
 
+    # K-Fold evaluation, if k_folds > 1
+    if [ "$k_folds" -gt 1 ]; then
+
+        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
+        # Averaging the results of all folds
+        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
+        # Plot confidence interval plots
+        # python public/plots_across_folds.py --dataset "$dataset_name"
+    fi
+
+    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
+
+done
+
 
 
 # P(X|Y)
@@ -247,5 +275,19 @@ for scaling in $(seq 1 8); do
         sleep 2
 
     done
+
+    # K-Fold evaluation, if k_folds > 1
+    if [ "$k_folds" -gt 1 ]; then
+
+        echo -e "\n\033[1;36mAveraging the results of all folds\033[0m\n"
+        # Averaging the results of all folds
+        python public/average_results.py --scaling "$scaling" --non_iid_type "$non_iid_type"
+        # Plot confidence interval plots
+        # python public/plots_across_folds.py --dataset "$dataset_name"
+    fi
+
+    echo -e "\n\033[1;36mExperiment completed successfully\033[0m\n"
+
+done
 
 
