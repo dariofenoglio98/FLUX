@@ -1,4 +1,4 @@
-name: CFL
+name: flux
 channels:
   - conda-forge
 dependencies:
@@ -11,8 +11,8 @@ dependencies:
       - scipy==1.14.1
       - seaborn==0.13.2
       - six==1.16.0
-      - torch==2.4.1
+      - torch==2.4.1 
       - torchvision==0.19.1
       - flwr==1.11.0
       - openpyxl
-prefix: /Users/dariofenoglio/miniforge3/envs/CFL
+      - kneed

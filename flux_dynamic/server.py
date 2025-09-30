@@ -1,19 +1,15 @@
 """
-Server side implementation of FLUX.
-METHOD: in the first rounds, FedAvg is used until the global model reaches a pre-defined accuracy. After that the 
-current global model is utilized to extract client descriptors and perform the unsupervised clustering. After the clustering,
-each client receives only the assigned cluster model, which its local model will be aggregated with other client models
-in the same clusters. The training continues until the end. 
-
-This code implements the FedAvg, when it starts, the server waits for the clients to connect. When the established number 
-of clients is reached, the learning process starts. The server sends the model to the clients, and the clients train the 
-model locally. After training, the clients send the updated model back to the server. Then client models are aggregated 
-with FedAvg. The aggregated model is then sent to the clients for the next round of training. The server saves the model 
-and metrics after each round.
+This code implements the server-side of FLUX. Like traditional FedAvg when it starts, the server waits for the clients 
+to connect. When the established number of clients is reached, the learning process starts. The server sends the model 
+to the clients, and the clients train the model locally. After training, the clients send the updated model back to the
+server. When the optimal round is reached, the server starts clustering the clients based on their data descriptors, 
+grouping them by similarity. Each client then receives only the assigned cluster model. The aggregation proceeds within
+the clusters. If the server is set to evaluate the model, it will do so after each round. The server also saves the 
+model and metrics after each round.
 
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
 In a distributed environment, the server_address should be the IP address of the server, and each client machine should 
-run the appopriate client code (client.py).
+run the appropriate client code (client.py).
 """
 
 # Libraries
@@ -39,6 +35,8 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 from kneed import KneeLocator # type: ignore
+from collections import Counter
+
 
 import sys
 import os
@@ -198,6 +196,101 @@ def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     return weights_prime
 
 
+def match_centroids_to_previous(current_centroids: dict, prev_centroids: dict) -> dict:
+    """
+    Associates each centroid in `current_centroids` with the closest centroid in `prev_centroids`.
+
+    Parameters:
+    - current_centroids: dict mapping current cluster labels to centroid arrays
+    - prev_centroids: dict mapping previous cluster labels to centroid arrays
+
+    Returns:
+    - A dict mapping each current label to the closest previous label
+    """
+    mapping = {}
+    for c_label, c_centroid in current_centroids.items():
+        # compute Euclidean distances to all previous centroids
+        distances = {p_label: np.linalg.norm(c_centroid - p_centroid) 
+                     for p_label, p_centroid in prev_centroids.items()}
+        # pick the previous label with minimum distance
+        closest_label = min(distances, key=distances.get)
+        mapping[c_label] = closest_label
+    return mapping
+
+def best_cluster_for_client(
+    client_id: int,
+    cluster_log: Dict[int, List[int]],
+    cluster_label_inference: Dict[int, int],
+    *,
+    test_round_index: int = -1,          # by default: last element → test-time
+    last_training_index: int = -2        # by default: penultimate element → last train round
+) -> Optional[int]:
+    """
+    Return the cluster-label (i.e. the model) that best fits `client_id` at test time.
+
+    Logic
+    -----
+    1. Look up the **test-time distribution** of `client_id`.
+    2. Find every other client whose **last-training-round** distribution equals that same value.
+    3. For those clients, tally the cluster labels you actually used during training
+       (`cluster_label_inference[other_client]`).
+    4. Return the most common label.  In case of a tie, return the smaller label.
+
+    Parameters
+    ----------
+    client_id : int
+        The client for which we want the best-fitting model.
+    cluster_log : dict[int, list[int]]
+        Key: client id.  Value: list of theoretical distributions per round
+        (e.g. [dist_round0, dist_round1, dist_test]).
+    cluster_label_inference : dict[int, int]
+        Key: client id.  Value: cluster label assigned by your training pipeline.
+    test_round_index : int, default -1
+        Which element in the list is the test-time distribution.
+    last_training_index : int, default -2
+        Which element in the list is the final training-round distribution.
+
+    Returns
+    -------
+    int | None
+        The selected cluster label, or `None` if the algorithm cannot find a match
+        (e.g. the distribution was never seen during training).
+    """
+
+    if client_id not in cluster_log:
+        raise KeyError(f"Client {client_id} not present in cluster_log")
+
+    history = cluster_log[client_id]
+    try:
+        test_distribution = history[test_round_index]
+    except IndexError:
+        raise ValueError(
+            f"Client {client_id} does not have a test-time entry "
+            f"at index {test_round_index}"
+        )
+
+    # 1. find peers with same distribution in the last training round
+    peers = [
+        cid
+        for cid, rounds in cluster_log.items()
+        if len(rounds) > abs(last_training_index)
+        and rounds[last_training_index] == test_distribution
+        and cid in cluster_label_inference        # must have a label
+    ]
+
+    if not peers:
+        # Never saw this distribution during training
+        return None
+
+    # 2. majority vote over the labels
+    counts = Counter(cluster_label_inference[cid] for cid in peers)
+    max_votes = max(counts.values())
+    # all labels with the highest vote count
+    winners = [label for label, n in counts.items() if n == max_votes]
+    # deterministic tie-break: choose the smallest label
+    return min(winners)
+
+
 
 # Custom strategy to save model after each round
 class SaveModelStrategy(fl.server.strategy.FedAvg):
@@ -269,9 +362,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
             self.cluster_status = 2
 
-            #############################################################################
-            # Prepare client descriptors
-            #############################################################################
             # Extract & scale client descriptors and self-assigned client ids, FLWR cids
             client_descr, client_id_plot, client_cid_list  = [], [], []
             for proxy, res in results:
@@ -371,9 +461,11 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             # Apply PCA to reduce the data to 2D for visualization
             X_reduced = PCA(n_components=2).fit_transform(client_descr)
 
-            #############################################################################
-            # Clustering methods
-            #############################################################################
+            # temp save
+            # save descriptors and cid list
+            # np.save(f'results/client_descr.npy', client_descr)
+            # np.save(f'results/client_id_plot.npy', client_id_plot)
+
             # KMeans
             if cfg.CLIENT_CLUSTER_METHOD == 1:
                 range_n_clusters = range(2, cfg.n_clients)
@@ -420,7 +512,8 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="HDBSCAN")
 
             # DBSCAN_no_outliers
-            elif cfg.CLIENT_CLUSTER_METHOD == 4:                
+            elif cfg.CLIENT_CLUSTER_METHOD == 4:
+                
                 # Calculate eps
                 nbrs = NearestNeighbors(n_neighbors=2).fit(client_descr)
                 distances, _ = nbrs.kneighbors(client_descr)
@@ -451,9 +544,9 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Output the final eps, the number of clusters, and the new labels
                 print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
                 print(f"Cluster labels after reassigning noise points: {cluster_labels}")
-                self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                # self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
 
-                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
+                self.centroid_dict = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type) # A dictionary containing the cluster label as the key and the centroid as the value.
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN")
 
             # DBSCAN_no_outliers
@@ -479,13 +572,157 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
             cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
             np.save(f'results/{self.path}/cluster_labels_inference_{self.args_main.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
             
+            # print(f"\033[91mRound {server_round} - Identified {self.n_clusters} - clusters ({self.cluster_labels.values()} - client cid {client_id_plot})\033[0m")
+
             # Assuming cluster_labels is a dictionary where keys are client IDs and values are cluster labels
             cluster_labels_list = list(self.cluster_labels.values())
             client_id_plot_sorted, cluster_labels_sorted = zip(*sorted(zip(client_id_plot, cluster_labels_list)))
 
             print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters (Cluster labels: {cluster_labels_sorted} - Client IDs: {client_id_plot_sorted})\033[0m")
 
+        
+        
+        ################################################################################
+        # Second clustering after drift being detected
+        ################################################################################ 
+        if server_round == cfg.drifting_round:
 
+            print(f"\033[91mRound {server_round} - Clustering clients...\033[0m")
+
+            # Extract & scale client descriptors and self-assigned client ids, FLWR cids
+            client_descr, client_id_plot, client_cid_list  = [], [], []
+            for proxy, res in results:
+                if cfg.extended_descriptors:
+                    if cfg.selected_descriptors == "Pxy":
+                        raise ValueError("Pxy descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Py":
+                        raise ValueError("Py descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px":
+                        raise ValueError("Px descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px_cond":
+                        raise ValueError("Px_cond descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Pxy_cond":
+                        raise ValueError("Pxy_cond descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px_label_long":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Px_label_long descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]) + \
+                                            json.loads(res.metrics["latent_space_std_by_label"]))
+                    elif cfg.selected_descriptors == "Px_label_short":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using extended Px_label_short descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_std"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]) + \
+                                            json.loads(res.metrics["latent_space_std_by_label"]))
+                else:    
+                    if cfg.selected_descriptors == "Pxy":
+                        raise ValueError("Pxy descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Py":
+                        raise ValueError("Py descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px":
+                        raise ValueError("Px descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px_cond":
+                        raise ValueError("Px_cond descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Pxy_cond":
+                        raise ValueError("Pxy_cond descriptors not supported for second clustering")
+                    elif cfg.selected_descriptors == "Px_label_long":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Px_label_long descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]))
+                    elif cfg.selected_descriptors == "Px_label_short":
+                        if res.metrics["cid"] == 1:
+                            print(f"\033[91mClustering using basic Px_label_short descriptors\033[0m")
+                        client_descr.append(json.loads(res.metrics["latent_space_mean"]) + \
+                                            json.loads(res.metrics["latent_space_mean_by_label"]))                        
+                        
+                client_id_plot.append(res.metrics["cid"])
+                client_cid_list.append(proxy.cid)
+
+            # scaling
+            client_descr = self.descriptors_scaler.scale(np.array(client_descr))
+            print(f"\033[91mRound {server_round} - Shape descriptors {client_descr.shape}\033[0m")
+
+            # Apply PCA to reduce the data to 2D for visualization
+            X_reduced = PCA(n_components=2).fit_transform(client_descr)
+            
+            # DBSCAN_no_outliers
+            if cfg.CLIENT_CLUSTER_METHOD == 4:
+                
+                # Calculate eps
+                nbrs = NearestNeighbors(n_neighbors=2).fit(client_descr)
+                distances, _ = nbrs.kneighbors(client_descr)
+                sorted_distances = np.sort(distances[:, 1])
+                kneedle = KneeLocator(range(len(sorted_distances)), sorted_distances, curve='convex', direction='increasing')
+                # print(f"kneedle.elbow: {sorted_distances[kneedle.elbow]}")
+                eps = sorted_distances[kneedle.elbow] * cfg.eps_scaling 
+                if cfg.dataset_name == 'CheXpert':
+                    eps = 1.0 
+
+                # Use this final eps for DBSCAN
+                clustering = DBSCAN(eps=eps, min_samples=2)
+                dbscan_cluster_labels = clustering.fit_predict(client_descr)
+
+                # Find the number of valid clusters (ignoring noise points, -1)
+                dbscan_valid_clusters = len(set(dbscan_cluster_labels)) - (1 if -1 in dbscan_cluster_labels else 0)
+
+                # Reassign noise points (-1) to new clusters starting from num_valid_clusters
+                cluster_labels = dbscan_cluster_labels.copy()
+                next_cluster_label = dbscan_valid_clusters  # Start assigning new cluster numbers
+
+                # Loop over the labels and assign new labels to noise points
+                for i, label in enumerate(dbscan_cluster_labels):
+                    if label == -1:  # Noise point detected
+                        cluster_labels[i] = next_cluster_label
+                        next_cluster_label += 1  # Move to the next cluster number
+
+                # Output the final eps, the number of clusters, and the new labels
+                print(f"Number of clusters (including reassigned noise points): {len(set(cluster_labels))}")
+                print(f"Cluster labels after reassigning noise points: {cluster_labels}")
+                # self.real_n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+
+                self.centroid_dict2 = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type) # A dictionary containing the cluster label as the key and the centroid as the value.
+                utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="DBSCAN2")
+
+            # DBSCAN_no_outliers
+            elif cfg.CLIENT_CLUSTER_METHOD == 5:
+                # known prior number of clusters
+                n_clusters = np.load(f'../data/cur_datasets/n_clusters.npy').item()
+                self.real_n_clusters = n_clusters
+                
+                # Use Kmeans for supervised clustering
+                clustering = KMeans(n_clusters=n_clusters, random_state=cfg.random_seed)
+                cluster_labels = clustering.fit_predict(client_descr)
+                # Calculate and save centroids
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
+                utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
+            
+            else:
+                print("Invalid clustering method!")
+            
+            self.mapping = match_centroids_to_previous(self.centroid_dict2, self.centroid_dict)
+            print(f"\033[94mMapping: {self.mapping}\033[0m")                
+        
+            # Update results and assign clusters
+            self.n_clusters = max(cluster_labels) + 1
+            self.cluster_labels = {cid: cluster_labels[i] for i, cid in enumerate(client_cid_list)}
+            # Save cluster labels
+            cluster_labels_inference = {cid: cluster_labels[i] for i, cid in enumerate(client_id_plot)}
+            np.save(f'results/{self.path}/cluster_labels_inference_{self.args_main.non_iid_type}_n_clients_{cfg.n_clients}.npy', cluster_labels_inference)
+            
+            # Assuming cluster_labels is a dictionary where keys are client IDs and values are cluster labels
+            cluster_labels_list = list(self.cluster_labels.values())
+            client_id_plot_sorted, cluster_labels_sorted = zip(*sorted(zip(client_id_plot, cluster_labels_list)))
+
+            print(f"\033[91mRound {server_round} - Identified {self.n_clusters} clusters (Cluster labels: {cluster_labels_sorted} - Client IDs: {client_id_plot_sorted})\033[0m")
+
+        
+        
+        
+        
         ################################################################################
         # Federated averaging aggregation
         ################################################################################
@@ -506,16 +743,30 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         
         # Clustered, update to cluster models
         if self.cluster_status == 2:
-            # Split aggregation into clusters
-            client_clusters = {i: [] for i in range(self.n_clusters)}
-            for i in range(cfg.n_clients):
-                cur_cid = cur_round_cids[i]
-                cur_cluster = self.cluster_labels[cur_cid]
-                client_clusters[cur_cluster].append(weights_results[i])
+            if server_round == cfg.drifting_round:
+                # Do not perform aggregation (no training) but update cluster models with the closest one
+                new_agg_cluster_parameters = {}
+                for cc in range(self.n_clusters):
+                    # Get the closest cluster
+                    closest_cluster = self.mapping[cc]
+                    # print(f"Closest cluster for {cc} is {closest_cluster}")
+                    # Update the parameters of the current cluster with the parameters of the closest cluster
+                    new_agg_cluster_parameters[cc] = self.aggregated_cluster_parameters[closest_cluster]
+                
+                # Update the cluster parameters with the new ones
+                self.aggregated_cluster_parameters = copy.deepcopy(new_agg_cluster_parameters)
+            else:
+                # Split aggregation into clusters
+                client_clusters = {i: [] for i in range(self.n_clusters)}
+                for i in range(cfg.n_clients):
+                    cur_cid = cur_round_cids[i]
+                    cur_cluster = self.cluster_labels[cur_cid]
+                    client_clusters[cur_cluster].append(weights_results[i])
 
-            # Aggregate each cluster
-            for cl, param in client_clusters.items():
-                self.aggregated_cluster_parameters[cl] = ndarrays_to_parameters(aggregate(param))
+                # Aggregate each cluster
+                for cl, param in client_clusters.items():
+                    self.aggregated_cluster_parameters[cl] = ndarrays_to_parameters(aggregate(param))
+                    # print(f"Aggregated cluster {cl} - {parameters_to_ndarrays(self.aggregated_cluster_parameters[cl])[0][0][0][0]}")
         # Not yet clustered, update to global model
         else:
             self.aggregated_parameters_global = ndarrays_to_parameters(aggregate(weights_results))
@@ -686,10 +937,10 @@ def main() -> None:
     in_channels = utils.get_in_channels()
     model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                           input_size=cfg.input_size).to(device)
-
     descriptors_scaler = client_descr_scaling(scaling_method=cfg.CLIENT_SCALING_METHOD,
-                                              scaler=MinMaxScaler(),)
-
+                                              scaler=MinMaxScaler(),
+                                              )
+    
     # Define strategy
     strategy = SaveModelStrategy(
         # self defined
@@ -758,6 +1009,7 @@ def main() -> None:
     # Evaluate the model on the client datasets    
     losses, accuracies = [], []
     losses_known, accuracies_known = [], []
+    cluster_log = np.load(f'../data/cur_datasets/cluster_log.npy', allow_pickle=True).item()
     for client_id in range(cfg.n_clients):
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{client_id}.npy', allow_pickle=True).item()
@@ -815,8 +1067,9 @@ def main() -> None:
         
         
         # --- Participating clients: assign known cluster ---
-        client_cluster = cluster_labels_inference[client_id]
-
+        client_cluster = best_cluster_for_client(client_id, cluster_log, cluster_labels_inference)
+        # client_cluster = cluster_labels_inference[client_id]
+        
         # Load respective cluster model
         cluster_model = models.models[cfg.model_name](in_channels=in_channels, num_classes=cfg.n_classes, \
                                         input_size=cfg.input_size).to(device)

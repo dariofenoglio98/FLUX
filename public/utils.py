@@ -1,3 +1,14 @@
+"""
+This module provides utility functions for:
+- Device selection and reproducibility (seed setup, GPU/MPS fallback)
+- Directory setup for saving results, histories, and images
+- Federated training metric visualization (loss/accuracy per client and server)
+- Clustering and centroid computation (KMeans, DBSCAN, HDBSCAN, etc.)
+- Plotting cluster visualizations, elbow curves, and silhouette scores
+- Determining the input channels from the dataset
+- Saving and annotating key evaluation metrics over training rounds
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -41,7 +52,8 @@ def plot_loss_and_accuracy(
         loss: List[float],
         accuracy: List[float],
         show: bool = True,
-        fold=0):
+        fold=0,
+        non_iid_type='label_skew_strict'):
     
     # # Plot loss separately
     plt.figure(figsize=(12, 6))
@@ -56,7 +68,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the loss plot
-    loss_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
+    loss_plot_path = f"images/{cfg.default_path}/{non_iid_type}_loss_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(loss_plot_path)
     if show:
         plt.show()
@@ -76,7 +88,7 @@ def plot_loss_and_accuracy(
     plt.legend()
     
     # Save the accuracy plot
-    accuracy_plot_path = f"images/{cfg.default_path}/{cfg.non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
+    accuracy_plot_path = f"images/{cfg.default_path}/{non_iid_type}_accuracy_n_clients_{cfg.n_clients}_n_rounds_{cfg.n_rounds}_fold_{fold}.png"
     plt.savefig(accuracy_plot_path)
     if show:
         plt.show()
@@ -138,13 +150,16 @@ def plot_elbow_and_silhouette(range_n_clusters, inertia, silhouette_scores, serv
 
 # Get cur dataset in_channels
 def get_in_channels():
-    for file_name in ['../data/cur_datasets/client_1.npy', '../data/cur_datasets/client_1_round_-1.npy']:
-        if os.path.exists(file_name):
-            cur_data = np.load(file_name, allow_pickle=True).item()
-            break
-    cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
+    if cfg.dataset_name == "CheXpert":
+        return 1
+    else:
+        for file_name in ['../data/cur_datasets/client_1.npy', '../data/cur_datasets/client_1_round_-1.npy']:
+            if os.path.exists(file_name):
+                cur_data = np.load(file_name, allow_pickle=True).item()
+                break
+        cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
 
-    return 3 if len(cur_features.shape) == 4 else 1
+        return 3 if len(cur_features.shape) == 4 else 1
 
 def set_seed(seed):
     # Set seed for torch
@@ -168,7 +183,8 @@ def set_seed(seed):
 def calculate_centroids(data: np.ndarray,
                         clustering_method,
                         cluster_labels,
-                        save=True):
+                        save=True,
+                        non_iid_type='label_skew_strict'):
     """
     Calculate the centroids of the clusters.
     
@@ -185,12 +201,12 @@ def calculate_centroids(data: np.ndarray,
     """
     
     # Kmeans
-    if cfg.flux_CLIENT_CLUSTER_METHOD == 1 or cfg.flux_CLIENT_CLUSTER_METHOD == 5:
+    if cfg.CLIENT_CLUSTER_METHOD == 1 or cfg.CLIENT_CLUSTER_METHOD == 5:
         centroids = clustering_method.cluster_centers_
         centroids_dict = {label: np.array(centroid) for label, centroid in zip(np.unique(cluster_labels), centroids)}
     
     # DBSCAN and HDBSCAN, DBSCAN_no_outliers
-    elif cfg.flux_CLIENT_CLUSTER_METHOD in [2, 3, 4]:
+    elif cfg.CLIENT_CLUSTER_METHOD in [2, 3, 4]:
         centroids_dict = {}
         for label in np.unique(cluster_labels):
             cluster_points = data[cluster_labels == label]
@@ -200,7 +216,7 @@ def calculate_centroids(data: np.ndarray,
     # print(f"Centroids: {centroids_dict}")
     if save:
         path = f"results/{cfg.default_path}"
-        np.save(f"{path}/centroids_{cfg.non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
+        np.save(f"{path}/centroids_{non_iid_type}_n_clients_{cfg.n_clients}.npy", centroids_dict, allow_pickle=True)
     
     return centroids_dict
 
@@ -248,4 +264,3 @@ def plot_all_clients_metrics(n_clients=cfg.n_clients, save=True, show=False, fol
         plt.show()
     else:
         plt.close()
-        

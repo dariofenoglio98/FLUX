@@ -1,8 +1,4 @@
 """
-FLUX Client Implementation.
-Each client trains a model locally, extracts descriptors when needed, evaluates the global model and shares
-the updated model with the server.
-
 This code creates a Flower client that can be used to train a model locally and share the updated 
 model with the server. When it is started, it connects to the Flower server and waits for instructions.
 If the server sends a model, the client trains the model locally and sends back the updated model.
@@ -18,7 +14,7 @@ have this code running.
 import argparse
 import numpy as np
 from collections import OrderedDict
-
+import copy
 import torch
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -45,6 +41,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.client_id = client_id
         self.device = device
         self.drifting_log = []
+        self.first_cluster_done = False
 
         # plot
         self.metrics = {
@@ -67,6 +64,8 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             load_index = max([index for index in self.drifting_log if index <= cur_round], default=0)
             cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}_round_{load_index}.npy', allow_pickle=True).item()
+            if self.client_id == 1:
+                print(f"\033[94mClient {self.client_id} - Loading data from round {load_index}\033[0m")
         
         cur_features = torch.tensor(cur_data['train_features'], dtype=torch.float32) if not cfg.training_drifting else torch.tensor(cur_data['features'], dtype=torch.float32)
         cur_labels = torch.tensor(cur_data['train_labels'], dtype=torch.int64) if not cfg.training_drifting else torch.tensor(cur_data['labels'], dtype=torch.int64)
@@ -111,9 +110,26 @@ class FlowerClient(fl.client.NumPyClient):
         # Extract descriptors
         descriptors = {}
         if config['extract_descriptors']:
-            descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.model, \
+            self.eval_model = copy.deepcopy(self.model) 
+            
+            descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.eval_model, \
                                                         client_id=self.client_id, max_latent_space=config["max_latent_space"])
+            self.old_descriptors = copy.deepcopy(descriptors)
+            
+        if cur_round == cfg.drifting_round:
+            if self.client_id == 1:
+                print(f"\033[94mDrift detected! Round {cur_round} - Extracting new descriptors \033[0m")
+            
+            descriptors = models.ModelEvaluator(test_loader=cur_train_loader, device=self.device).extract_descriptors(model=self.eval_model, \
+                                                    client_id=self.client_id, max_latent_space=config["max_latent_space"])
 
+            pass  # No training for the second time
+        
+            # print(f"Client {self.client_id} - Model parameters: {list(self.model.state_dict().values())[0][0][0][:1]}")
+        
+            return self.get_parameters(config), len(cur_train_loader.dataset), descriptors
+            
+            
         # Train the model   
         for epoch in range(config["local_epochs"]):
             models.simple_train(model=self.model,
@@ -129,6 +145,10 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         cur_round = config["current_round"]
         cur_val_loader = self.load_current_data(cur_round, train=False)
+        
+        # if cur_round == cfg.drifting_round:
+        #     # print few model parameters
+        #     print(f"Eval: Client {self.client_id} - Model parameters: {list(self.model.state_dict().values())[0][0][0][:1]}")
 
         loss_trad, accuracy_trad, f1_score_trad, new_max_latent_space = \
             models.ModelEvaluator(test_loader=cur_val_loader, device=self.device).evaluate(self.model)    

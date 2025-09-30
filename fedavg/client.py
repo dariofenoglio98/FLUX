@@ -5,7 +5,7 @@ Each client trains a model locally, evaluates the global model and shares the up
 This code creates a Flower client that can be used to train a model locally and share the updated 
 model with the server. When it is started, it connects to the Flower server and waits for instructions.
 If the server sends a model, the client trains the model locally and sends back the updated model.
-If abilitated, at the end of the training the client evaluates the last model, and plots the 
+If enabled, at the end of the training the client evaluates the last model, and plots the 
 metrics during the training.
 
 This is code is set to be used locally, but it can be used in a distributed environment by changing the server_address.
@@ -58,29 +58,29 @@ class FlowerClient(fl.client.NumPyClient):
     def load_current_data(self,
                           cur_round,
                           train=True) -> DataLoader:
+
         # load raw data
         if not cfg.training_drifting:
             cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}.npy', allow_pickle=True).item()
         else:
             load_index = max([index for index in self.drifting_log if index <= cur_round], default=0)
             cur_data = np.load(f'../data/cur_datasets/client_{self.client_id}_round_{load_index}.npy', allow_pickle=True).item()
+        
+        cur_features = torch.tensor(cur_data['train_features'], dtype=torch.float32) if not cfg.training_drifting else torch.tensor(cur_data['features'], dtype=torch.float32)
+        cur_labels = torch.tensor(cur_data['train_labels'], dtype=torch.int64) if not cfg.training_drifting else torch.tensor(cur_data['labels'], dtype=torch.int64)
 
-        cur_features = cur_data['train_features'] if not cfg.training_drifting else cur_data['features']
-        cur_features = cur_features.unsqueeze(1) if utils.get_in_channels() == 1 else cur_features
-
-        cur_labels = cur_data['train_labels'] if not cfg.training_drifting else cur_data['labels']
+        if not cfg.dataset_name == "CheXpert":
+            cur_features = cur_features.unsqueeze(1) if utils.get_in_channels() == 1 else cur_features
 
         # Split the data into training and testing subsets
         train_features, val_features, train_labels, val_labels = train_test_split(
             cur_features, cur_labels, test_size=cfg.client_eval_ratio, random_state=cfg.random_seed
         )
         
-        # reduce client data
+        # reduce the number of samples 
         if cfg.n_samples_clients > 0:
             train_features = train_features[:cfg.n_samples_clients]
             train_labels = train_labels[:cfg.n_samples_clients]
-        
-        # print(f"client shape data: {train_features.shape}, {val_features.shape}")
 
         if train:
             train_dataset = models.CombinedDataset(train_features, train_labels, transform=None)
