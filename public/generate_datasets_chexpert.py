@@ -64,19 +64,35 @@ np.save(f'./data/cur_datasets/n_clusters.npy', DIST_NUM)
 
 EPOCH_NUM = 1 
 
+# Download latest version if not already cached locally
+def resolve_dataset_path() -> str:
+    """Return a path containing the CheXpert dataset, downloading it if needed."""
+    default_path = os.path.join(
+        os.path.expanduser("~"),
+        ".cache",
+        "kagglehub",
+        "datasets",
+        "ashery",
+        "chexpert",
+        "versions",
+        "1",
+    )
 
+    expected_csv = os.path.join(default_path, "train.csv")
+    if os.path.exists(expected_csv):
+        print(f"Using cached CheXpert dataset at {default_path}")
+        return default_path
 
-# Download latest version
-# path = kagglehub.dataset_download("ashery/chexpert")
-# print("Path to dataset files:", path)
+    print("CheXpert dataset not found in cache. Downloading with kagglehub...")
+    downloaded_path = kagglehub.dataset_download("ashery/chexpert")
 
-# kaggle saved
-path = '/home/dario/.cache/kagglehub/datasets/ashery/chexpert/versions/1'
+    downloaded_csv = os.path.join(downloaded_path, "train.csv")
+    if os.path.exists(downloaded_csv):
+        return downloaded_path
 
-# sampled saved
-path_sampled = './data/saved_chex'
-os.makedirs('./data/cur_datasets', exist_ok=True)
-os.makedirs(path_sampled, exist_ok=True)
+    raise FileNotFoundError(
+        "CheXpert dataset download did not contain train.csv in the expected location."
+    )
 
 def generate_DA_dist(
     dist_bank: list,
@@ -257,11 +273,15 @@ def split_to_K_dist(
 
     return cur_data_list
 
+path = resolve_dataset_path()
 
+# sampled saved
+path_sampled = './data/saved_chex'
+os.makedirs('./data/cur_datasets', exist_ok=True)
+os.makedirs(path_sampled, exist_ok=True)
 
 train_data_list = split_to_K_dist(start_sample=0,n_sample=TRAIN_SIZE, image_dim=IMAGE_DIM, dist_num=DIST_NUM, data_path=path)
 test_data_list = split_to_K_dist(start_sample=TRAIN_SIZE,n_sample=TRAIN_SIZE+TEST_SIZE, image_dim=IMAGE_DIM, dist_num=DIST_NUM, data_path=path)
-
 
 train_dist_list = []
 last_dist_set = set()  # Use a set to avoid duplicates
@@ -297,8 +317,6 @@ for client_Count in range(args.n_clients):
             "\nTest distribution: ", test_dist,
             "\nEpoch lockers: ", lockers,
             "\n")
-
-    # training subsets
 
     # Loop through feature chunks and label chunks
     for i in range(EPOCH_NUM):
@@ -370,9 +388,6 @@ for client_Count in range(args.n_clients):
         'train_dist': train_dist,
         'test_dist': test_dist
     })
-
-
-
 
 # complex format as training drifting
 drifting_log = {}

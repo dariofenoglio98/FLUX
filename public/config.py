@@ -26,6 +26,7 @@ th_round = 0.06 # derivative threshold on accuracy trend for starting clustering
 dataset_name = "MNIST" # ["CIFAR10", "CIFAR100", "MNIST", "FMNIST", "EMNIST", "CheXpert"]
 drifting_type = 'static' # ['static', 'trND_teDR', 'trDA_teDR', 'trDA_teND', 'trDR_teDR', 'trDR_teND'] refer to ANDA page for more details
 drifting_round = 8 # to be used with trDR_teND
+max_labels = 20 # limit the number of labels for OfficeHome 
 non_iid_type = 'label_condition_skew' # refer to ANDA page for more details
 verbose = True
 count_labels = True
