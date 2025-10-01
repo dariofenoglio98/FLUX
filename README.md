@@ -38,11 +38,15 @@ Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, C
    git clone https://github.com/dariofenoglio98/CFL.git
    cd CFL
    ```
-2. Set Conda Environment and necessary Libraries (recommended)
+2. Clone ANDA (for non-IID data generation)
+   ```bash 
+   git clone https://github.com/alfredoLimo/ANDA.git
+   ```
+3. Set Conda Environment and necessary Libraries (recommended)
     ```bash
     conda env create -f environment.yml
     ```
-3. or install only the required Python packages
+4. or install only the required Python packages
     ```bash
     pip install -r requirements.txt
     ```
