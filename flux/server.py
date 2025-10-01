@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader
 from collections import OrderedDict
 from typing import List, Tuple, Union, Optional, Dict
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.cluster import KMeans, DBSCAN, HDBSCAN
+from sklearn.cluster import KMeans, DBSCAN, HDBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
@@ -468,7 +468,37 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
                 # Calculate and save centroids
                 _ = utils.calculate_centroids(client_descr, clustering, cluster_labels, non_iid_type=self.args_main.non_iid_type)
                 utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round, name="KMeans")
-            
+
+            # Agglomerative-hierarchical clustering
+            elif cfg.CLIENT_CLUSTER_METHOD == 6:
+
+                # ---- hyper-parameters -------------------------------------------------
+                # Exactly one of {n_clusters, distance_threshold} must be None
+                linkage            = "ward"       # "ward", "single", "complete", "average"
+                metric             = "euclidean"   # "euclidean", "manhattan", "cosine", …
+                n_clusters         = None        # e.g. 5  (set None if you prefer distance_threshold)
+                distance_threshold = 1.2 # e.g. 1.2 (set None if you prefer n_clusters)
+                # ----------------------------------------------------------------------
+
+                clustering = AgglomerativeClustering(
+                    n_clusters=n_clusters,
+                    linkage=linkage,
+                    metric=metric,                 # called “affinity” <1.4; “metric” ≥1.4
+                    distance_threshold=distance_threshold
+                )
+                cluster_labels = clustering.fit_predict(client_descr)
+
+                # ── diagnostics ───────────────────────────────────────────────────────
+                print(f"Number of clusters: {len(set(cluster_labels))}")
+                print(f"Cluster labels: {cluster_labels}")
+                # ───────────────────────────────────────────────────────────────────────
+
+                self.real_n_clusters = np.load('../data/cur_datasets/n_clusters.npy').item()
+
+                _ = utils.calculate_centroids(client_descr, clustering, cluster_labels)
+                utils.cluster_plot(X_reduced, cluster_labels, client_id_plot, server_round,
+                                   name="Agglomerative")
+                
             else:
                 print("Invalid clustering method!")
 

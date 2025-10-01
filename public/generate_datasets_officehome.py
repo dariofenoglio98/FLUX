@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict # type: ignore
 from torchvision.transforms import Compose, Resize, ToTensor
 import config as cfg
 import sys
@@ -17,12 +17,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--fold",        type=int,   default=123,help="RNG seed")
 args = parser.parse_args()
 
-N_CLIENTS     = cfg.n_clients                     # Total FL clients
-MAX_LABELS    = cfg.max_labels  # Classes kept per domain (→ relabelled 0…max_labels-1)
-TEST_RATIO    = cfg.client_eval_ratio             # Fraction of each client’s data used for testing
-SEED          = cfg.random_seed + args.fold                   # RNG seed
-OUT_DIR       = pathlib.Path("./data/cur_datasets")  # Where client_*.npy files are written
-IMG_DIM       = (64, 64)      # ← NEW: target (H, W) for every image
+N_CLIENTS     = cfg.n_clients                               # Total FL clients
+MAX_LABELS    = cfg.max_labels                              # Classes kept per domain (→ relabelled 0…max_labels-1)
+TEST_RATIO    = cfg.client_eval_ratio                       # Fraction of each client’s data used for testing
+SEED          = cfg.random_seed + args.fold                 # RNG seed
+OUT_DIR       = pathlib.Path("./data/cur_datasets")         # Where client_*.npy files are written
+IMG_DIM       = cfg.input_size                              # (H, W) to resize Office-Home images to
 DOMAINS       = ["Art", "Clipart", "Product", "Real World"]
 
 random.seed(SEED);  np.random.seed(SEED);  torch.manual_seed(SEED)

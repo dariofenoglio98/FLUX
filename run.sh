@@ -10,7 +10,7 @@ n_rounds=$(python -c "from public.config import n_rounds; print(n_rounds)")
 
 
 
-# P(X)
+# P(X) --- or CheXpert and Office-Home
 non_iid_type='feature_skew_strict' 
 for scaling in $(seq 1 8); do
 
@@ -32,20 +32,26 @@ for scaling in $(seq 1 8); do
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
         if [ "$dataset_name" == "CheXpert" ]; then
-            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
+            python public/generate_datasets_chexpert.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients" # only 3 non-IID levels for CheXpert
+        elif [ "$dataset_name" == "Office-Home" ]; then
+            if [ "$scaling" -gt 1 ]; then
+                echo -e "\n\033[1;31mOffice-Home dataset only supports scaling level 1, skipping scaling level $scaling\033[0m\n"
+                continue
+            fi
+            python public/generate_datasets_officehome.py --fold "$fold" # only one non-IID level for Office-Home
         else
             python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         fi
 
-    cd "$strategy"
+        cd "$strategy"
 
-    # simulated FL (without Flower Library)
-    # python centralized_fl.py --fold "$fold"
+        # simulated FL (without Flower Library)
+        # python centralized_fl.py --fold "$fold"
 
-    # FL with Flower Library
-    python server.py --fold "$fold" &
-    # python dynamic_cluster_global_server.py &
-    sleep 2  # Sleep for 2s to give the server enough time to start
+        # FL with Flower Library
+        python server.py --fold "$fold" &
+        # python dynamic_cluster_global_server.py &
+        sleep 2  # Sleep for 2s to give the server enough time to start
 
         for i in $(seq 0 $(($n_clients - 1))); do
             echo "Starting client ID $i"
@@ -106,13 +112,12 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        if [ "$dataset_name" == "CheXpert" ]; then
-            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
-        else
-            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
-        fi
-
+        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         cd "$strategy"
+
+        # simulated FL (without Flower Library)
+        # python centralized_fl.py --fold "$fold"
+
         python server.py --fold "$fold" &
         sleep 3  # Sleep for 2s to give the server enough time to start
 
@@ -175,13 +180,12 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        if [ "$dataset_name" == "CheXpert" ]; then
-            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
-        else
-            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
-        fi
-
+        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         cd "$strategy"
+
+        # simulated FL (without Flower Library)
+        # python centralized_fl.py --fold "$fold"
+
         python server.py --fold "$fold" &
         sleep 3  # Sleep for 2s to give the server enough time to start
 
@@ -244,13 +248,12 @@ for scaling in $(seq 1 8); do
 
         # Clean and create datasets
         rm -rf data/cur_datasets/* 
-        if [ "$dataset_name" == "CheXpert" ]; then
-            python public/chexpert_data_gen.py --fold "$fold" --scaling "$scaling" --n_clients "$n_clients"
-        else
-            python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
-        fi
-
+        python public/generate_datasets.py --fold "$fold" --scaling "$scaling" --non_iid_type "$non_iid_type"
         cd "$strategy"
+
+        # simulated FL (without Flower Library)
+        # python centralized_fl.py --fold "$fold"
+
         python server.py --fold "$fold" &
         sleep 3  # Sleep for 2s to give the server enough time to start
 

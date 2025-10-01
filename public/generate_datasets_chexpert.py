@@ -29,7 +29,7 @@ PER_ROUND_TEST_SIZE = 280
 IMAGE_DIM = 64
 
 
-import kagglehub
+import kagglehub # type: ignore 
 import os
 import pandas as pd
 from PIL import Image
