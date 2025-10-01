@@ -16,6 +16,10 @@ This is the official implementation of the paper accepted at **NeurIPS 2025**:
 
 Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, CheXpert, Office-Home) show that FLUX improves robustness and scalability while keeping computation and communication overhead comparable to FedAvg.
 
+<p align="center">
+  <img src="plot/flux_overview.pdf" alt="FLUX Overview" width="600"/>
+</p>
+
 ---
 
 ## 📦 Key Features
@@ -53,7 +57,6 @@ Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, C
 
 ---
 
-
 ## ⚙️ Configuration
 All experimental settings are managed via the `public/config.py` and `run.sh` files:
 - `dataset`: Choose from MNIST, FMNIST, CIFAR10, CIFAR100, or CheXpert.
@@ -63,9 +66,7 @@ All experimental settings are managed via the `public/config.py` and `run.sh` fi
 - Heterogeneity levels: Control the severity of non-IID partitions (1–8).
 - Training hyperparameters: Learning rate, batch size, local epochs, communication rounds, etc.
 
-
 ---
-
 
 ## 🏃‍♂️ Running Experiments
 Once configured, launch experiments with:
@@ -74,16 +75,12 @@ bash run.sh
 ```
 Results—including metrics, training history, visualizations, and model checkpoints—are saved under the `strategy/results`, `strategy/history`, `strategy/images`, and `strategy/checkpoints` directories, respectively.
 
-
 ---
-
 
 ## License
 This project is licensed under the MIT License – see the LICENSE.md file for details.
 
-
 ---
-
 
 ## Citation
 If you use this code, please cite our paper:
