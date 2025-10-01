@@ -11,3 +11,6 @@ torchvision #==0.19.1
 flwr==1.11.0
 openpyxl
 kneed
+kagglehub==0.3.10
+datasets==3.3.2
+

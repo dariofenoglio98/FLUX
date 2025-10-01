@@ -2,6 +2,8 @@ name: flux
 channels:
   - conda-forge
 dependencies:
+  - python=3.12
+  - pip
   - pip:
       - flower==2.0.1
       - matplotlib==3.9.2
@@ -16,3 +18,5 @@ dependencies:
       - flwr==1.11.0
       - openpyxl
       - kneed
+      - kagglehub==0.3.10
+      - datasets==3.3.2
