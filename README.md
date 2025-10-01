@@ -17,7 +17,7 @@ This is the official implementation of the paper accepted at **NeurIPS 2025**:
 Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, CheXpert, Office-Home) show that FLUX improves robustness and scalability while keeping computation and communication overhead comparable to FedAvg.
 
 <p align="center">
-  <img src="plot/flux_overview.pdf" alt="FLUX Overview" width="600"/>
+  <img src="plots/flux_overview.png" alt="FLUX Overview" width="100%"/>
 </p>
 
 ---
