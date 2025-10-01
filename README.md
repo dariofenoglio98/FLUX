@@ -35,8 +35,8 @@ Extensive experiments across six datasets (MNIST, FMNIST, CIFAR-10, CIFAR-100, C
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/dariofenoglio98/CFL.git
-   cd CFL
+   git clone https://github.com/dariofenoglio98/FLUX.git
+   cd FLUX
    ```
 2. Clone ANDA (for non-IID data generation)
    ```bash 
